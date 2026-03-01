@@ -1,16 +1,13 @@
-import { useState, useEffect, CSSProperties } from "react";
+import { useState, useEffect } from "react";
+import type { CSSProperties, JSX } from "react";
 import type {
   ExecutionState,
   MessageState,
   TaskState,
   StepState,
-  TaskResult,
   MessageResult,
   SessionMetrics,
   StatusConfig,
-  ExeTaskStatus,
-  ExeStepStatus,
-  ExeMessageStatus,
   RetrievedChunk,
 } from "./types";
 
@@ -125,9 +122,9 @@ const BASE_STATE: Record<string, ExecutionState> = {
   },
 };
 
-// ─── Status Config ────────────────────────────────────────────────────────────
+const INITIAL_TIMESTAMP_MS = Date.now();
 
-type AllStatuses = ExeTaskStatus | ExeStepStatus | ExeMessageStatus;
+// ─── Status Config ────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, StatusConfig> = {
   CREATED:     { color: "#6b7280", bg: "#111827", label: "Queued",  dot: "#6b7280" },
@@ -625,9 +622,10 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
 
 interface TimelineViewProps {
   tasks: Record<string, TaskState>;
+  nowSeconds: number;
 }
 
-function TimelineView({ tasks }: TimelineViewProps): JSX.Element {
+function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
   const taskList = Object.values(tasks);
 
   if (!taskList.length) {
@@ -636,9 +634,8 @@ function TimelineView({ tasks }: TimelineViewProps): JSX.Element {
     );
   }
 
-  const now = Math.floor(Date.now() / 1000);
   const minT = Math.min(...taskList.map((t) => t.created_at));
-  const maxT = Math.max(...taskList.map((t) => t.completed_at ?? now));
+  const maxT = Math.max(...taskList.map((t) => t.completed_at ?? nowSeconds));
   const span = Math.max(maxT - minT, 1);
   const ticks = [0, 0.25, 0.5, 0.75, 1];
 
@@ -695,7 +692,7 @@ function TimelineView({ tasks }: TimelineViewProps): JSX.Element {
       {taskList.map((task, i) => {
         const cfg = STATUS_CONFIG[task.status] ?? STATUS_CONFIG["CREATED"];
         const startT = task.started_at ?? task.created_at;
-        const endT = task.completed_at ?? now;
+        const endT = task.completed_at ?? nowSeconds;
         const left = ((startT - minT) / span) * 100;
         const width = Math.max(((endT - startT) / span) * 100, 0.8);
         const steps = Object.values(task.steps ?? {});
@@ -904,7 +901,7 @@ export default function Dashboard(): JSX.Element {
   const [selectedChatId, setSelectedChatId] = useState<string>("chat_test_7");
   const [selectedMsgId, setSelectedMsgId] = useState<string>("msg_test_7");
   const [view, setView] = useState<ViewMode>("tasks");
-  const [lastPoll, setLastPoll] = useState<number>(Date.now());
+  const [lastPoll, setLastPoll] = useState<number>(INITIAL_TIMESTAMP_MS);
   const [pollAgo, setPollAgo] = useState<number>(0);
 
   // Polling — replace setLastPoll body with your API fetch
@@ -915,12 +912,17 @@ export default function Dashboard(): JSX.Element {
       //   .then(data => setState(data))
       setLastPoll(Date.now());
     }, 5000);
+    return () => {
+      clearInterval(poll);
+    };
+  }, []);
+
+  useEffect(() => {
     const ticker = setInterval(
       () => setPollAgo(Math.round((Date.now() - lastPoll) / 1000)),
       1000
     );
     return () => {
-      clearInterval(poll);
       clearInterval(ticker);
     };
   }, [lastPoll]);
@@ -931,13 +933,6 @@ export default function Dashboard(): JSX.Element {
   const currentMessage: MessageState | undefined = currentChat?.messages[selectedMsgId];
   const tasks: Record<string, TaskState> = currentMessage?.tasks ?? {};
   const taskList: TaskState[] = Object.values(tasks);
-
-  // Auto-select first message on chat change
-  useEffect(() => {
-    if (messages.length > 0) {
-      setSelectedMsgId(messages[0].message_id);
-    }
-  }, [selectedChatId]);
 
   const btnStyle = (active: boolean): CSSProperties => ({
     padding: "5px 14px",
@@ -1021,7 +1016,15 @@ export default function Dashboard(): JSX.Element {
             <div style={{ fontSize: 9, color: "#374151", letterSpacing: "0.1em", marginBottom: 3 }}>CHAT</div>
             <select
               value={selectedChatId}
-              onChange={(e) => setSelectedChatId(e.target.value)}
+              onChange={(e) => {
+                const nextChatId = e.target.value;
+                setSelectedChatId(nextChatId);
+                const nextMessages = BASE_STATE[nextChatId]?.messages ?? {};
+                const firstMsgId = Object.values(nextMessages)[0]?.message_id;
+                if (firstMsgId) {
+                  setSelectedMsgId(firstMsgId);
+                }
+              }}
               style={selectStyle}
             >
               {chatIds.map((id) => (
@@ -1165,7 +1168,7 @@ export default function Dashboard(): JSX.Element {
               padding: "18px 20px",
             }}
           >
-            <TimelineView tasks={tasks} />
+            <TimelineView tasks={tasks} nowSeconds={Math.floor(lastPoll / 1000)} />
           </div>
         )}
       </div>
