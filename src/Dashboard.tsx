@@ -7,11 +7,17 @@ import type {
   StepState,
   MessageResult,
   SessionMetrics,
-  StatusConfig,
   RetrievedChunk,
 } from "./types";
 import { redisApi, type AvailableChat } from "./external/redis-api";
 import { runTryoutSimulation } from "./tryout/tryout-simulator";
+import {
+  getTheme,
+  getStatusConfig,
+  ThemeContext,
+  useTheme,
+  type ThemeMode,
+} from "./theme";
 
 const POLL_INTERVALS = (() => {
   const raw =
@@ -153,29 +159,7 @@ const BASE_STATE: Record<string, ExecutionState> = {
 
 const INITIAL_TIMESTAMP_MS = Date.now();
 
-// ─── Status Config ────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<string, StatusConfig> = {
-  CREATED: { color: "#6b7280", bg: "#111827", label: "Queued", dot: "#6b7280" },
-  IN_PROGRESS: {
-    color: "#f59e0b",
-    bg: "#1c1407",
-    label: "Running",
-    dot: "#f59e0b",
-  },
-  COMPLETED: { color: "#10b981", bg: "#051a11", label: "Done", dot: "#10b981" },
-  FAILED: { color: "#ef4444", bg: "#1c0505", label: "Failed", dot: "#ef4444" },
-  PICKED: { color: "#8b5cf6", bg: "#130d1f", label: "Picked", dot: "#8b5cf6" },
-  // Step statuses (lowercase from API)
-  in_progress: {
-    color: "#f59e0b",
-    bg: "#1c1407",
-    label: "Running",
-    dot: "#f59e0b",
-  },
-  completed: { color: "#10b981", bg: "#051a11", label: "Done", dot: "#10b981" },
-  failed: { color: "#ef4444", bg: "#1c0505", label: "Failed", dot: "#ef4444" },
-};
+// ─── Status Config (now theme-aware, see theme.ts) ──────────────────────────
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -217,6 +201,8 @@ interface StatusBadgeProps {
 }
 
 function StatusBadge({ status, size = "sm" }: StatusBadgeProps): JSX.Element {
+  const theme = useTheme();
+  const STATUS_CONFIG = getStatusConfig(theme.mode);
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG["CREATED"];
   const running = isRunning(status);
 
@@ -261,14 +247,15 @@ interface ChunksViewerProps {
 }
 
 function ChunksViewer({ chunks }: ChunksViewerProps): JSX.Element {
+  const theme = useTheme();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {chunks.map((chunk) => (
         <div
           key={chunk.chunk_index}
           style={{
-            background: "#04080f",
-            border: "1px solid #1a2535",
+            background: theme.deepBg,
+            border: `1px solid ${theme.deepBorder}`,
             borderRadius: 6,
             padding: "10px 12px",
           }}
@@ -284,7 +271,7 @@ function ChunksViewer({ chunks }: ChunksViewerProps): JSX.Element {
             <span
               style={{
                 fontSize: 9,
-                color: "#3b82f6",
+                color: theme.accent,
                 letterSpacing: "0.08em",
                 whiteSpace: "nowrap",
               }}
@@ -294,7 +281,7 @@ function ChunksViewer({ chunks }: ChunksViewerProps): JSX.Element {
             <span
               style={{
                 fontSize: 9,
-                color: "#4b5563",
+                color: theme.textTertiary,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -307,7 +294,7 @@ function ChunksViewer({ chunks }: ChunksViewerProps): JSX.Element {
             style={{
               margin: 0,
               fontSize: 11,
-              color: "#9ca3af",
+              color: theme.textSecondary,
               lineHeight: 1.7,
             }}
           >
@@ -329,6 +316,8 @@ interface StepRowProps {
 function StepRow({ step, index }: StepRowProps): JSX.Element {
   const [expanded, setExpanded] = useState<boolean>(false);
   const [tab, setTab] = useState<"args" | "result">("args");
+  const theme = useTheme();
+  const STATUS_CONFIG = getStatusConfig(theme.mode);
 
   const chunks = step.tool_result?.structuredContent?.retrieved_content;
   const hasResult = step.tool_result && !step.tool_result.isError;
@@ -339,9 +328,9 @@ function StepRow({ step, index }: StepRowProps): JSX.Element {
     fontSize: 10,
     borderRadius: 4,
     cursor: "pointer",
-    background: tab === id ? "#0d2340" : "transparent",
-    border: `1px solid ${tab === id ? "#3b82f6" : "#1f2937"}`,
-    color: tab === id ? "#93c5fd" : "#4b5563",
+    background: tab === id ? theme.accentBg : "transparent",
+    border: `1px solid ${tab === id ? theme.accentBorder : theme.textDimmest}`,
+    color: tab === id ? theme.accentText : theme.textTertiary,
     transition: "all 0.15s",
   });
 
@@ -366,12 +355,13 @@ function StepRow({ step, index }: StepRowProps): JSX.Element {
           padding: "7px 8px",
           borderRadius: 6,
           cursor: "pointer",
-          background: expanded ? "#0a0e14" : "transparent",
+          background: expanded ? theme.hoverBg : "transparent",
           transition: "background 0.15s",
         }}
         onMouseEnter={(e) => {
           if (!expanded)
-            (e.currentTarget as HTMLDivElement).style.background = "#0a0e14";
+            (e.currentTarget as HTMLDivElement).style.background =
+              theme.hoverBg;
         }}
         onMouseLeave={(e) => {
           if (!expanded)
@@ -382,7 +372,7 @@ function StepRow({ step, index }: StepRowProps): JSX.Element {
         <span
           style={{
             fontSize: 10,
-            color: "#374151",
+            color: theme.textMuted,
             fontFamily: "monospace",
             minWidth: 18,
           }}
@@ -395,24 +385,28 @@ function StepRow({ step, index }: StepRowProps): JSX.Element {
             borderRadius: 4,
             fontSize: 10,
             fontWeight: 600,
-            background: "#0d1e35",
-            color: "#60a5fa",
-            border: "1px solid #1d4ed820",
+            background: theme.toolBg,
+            color: theme.toolText,
+            border: `1px solid ${theme.toolBorder}`,
             letterSpacing: "0.04em",
           }}
         >
           {step.tool_id}
         </span>
-        <span style={{ fontSize: 10, color: "#4b5563" }}>{step.agent_id}</span>
+        <span style={{ fontSize: 10, color: theme.textTertiary }}>
+          {step.agent_id}
+        </span>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 10, color: "#374151" }}>
+        <span style={{ fontSize: 10, color: theme.textMuted }}>
           {ts(step.started_at)} → {ts(step.completed_at)}
         </span>
-        <span style={{ fontSize: 10, color: "#4b5563", marginLeft: 6 }}>
+        <span
+          style={{ fontSize: 10, color: theme.textTertiary, marginLeft: 6 }}
+        >
           ({elapsed(step.started_at, step.completed_at)})
         </span>
         <StatusBadge status={step.status} />
-        <span style={{ color: "#374151", fontSize: 10 }}>
+        <span style={{ color: theme.textMuted, fontSize: 10 }}>
           {expanded ? "▲" : "▼"}
         </span>
       </div>
@@ -424,8 +418,8 @@ function StepRow({ step, index }: StepRowProps): JSX.Element {
             margin: "4px 8px 10px",
             padding: 12,
             borderRadius: 8,
-            background: "#04080f",
-            border: "1px solid #111827",
+            background: theme.deepBg,
+            border: `1px solid ${theme.deepBorder}`,
           }}
         >
           <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
@@ -457,7 +451,7 @@ function StepRow({ step, index }: StepRowProps): JSX.Element {
                 margin: 0,
                 fontSize: 11,
                 fontFamily: "monospace",
-                color: "#9ca3af",
+                color: theme.textSecondary,
                 whiteSpace: "pre-wrap",
               }}
             >
@@ -498,6 +492,8 @@ interface TaskCardProps {
 function TaskCard({ task, index }: TaskCardProps): JSX.Element {
   const [expanded, setExpanded] = useState<boolean>(true);
   const [resultOpen, setResultOpen] = useState<boolean>(false);
+  const theme = useTheme();
+  const STATUS_CONFIG = getStatusConfig(theme.mode);
 
   const steps = Object.values(task.steps ?? {});
   const completedSteps = steps.filter((s) => s.status === "completed").length;
@@ -509,7 +505,7 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
   return (
     <div
       style={{
-        background: "#080e1a",
+        background: theme.cardBg,
         border: `1px solid ${cfg.color}20`,
         borderRadius: 10,
         overflow: "hidden",
@@ -555,14 +551,18 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
           <div
             style={{
               fontSize: 13,
-              color: "#e5e7eb",
+              color: theme.textPrimary,
               marginBottom: 5,
               lineHeight: 1.4,
             }}
           >
             {parsedContent ? (
               <span
-                style={{ color: "#6b7280", fontStyle: "italic", fontSize: 12 }}
+                style={{
+                  color: theme.textTertiary,
+                  fontStyle: "italic",
+                  fontSize: 12,
+                }}
               >
                 [JSON payload — expand to view]
               </span>
@@ -580,28 +580,38 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
               alignItems: "center",
             }}
           >
-            <span style={{ fontSize: 10, color: "#374151" }}>
-              <span style={{ color: "#4b5563" }}>{task.assigned_by}</span>
-              <span style={{ color: "#1f2937", margin: "0 5px" }}>→</span>
-              <span style={{ color: "#60a5fa" }}>{task.assigned_to}</span>
+            <span style={{ fontSize: 10, color: theme.textMuted }}>
+              <span style={{ color: theme.textTertiary }}>
+                {task.assigned_by}
+              </span>
+              <span style={{ color: theme.textDimmest, margin: "0 5px" }}>
+                →
+              </span>
+              <span style={{ color: theme.accentLight }}>
+                {task.assigned_to}
+              </span>
             </span>
-            <span style={{ color: "#1a2535" }}>|</span>
+            <span style={{ color: theme.separator }}>|</span>
             <span
-              style={{ fontSize: 9, color: "#374151", fontFamily: "monospace" }}
+              style={{
+                fontSize: 9,
+                color: theme.textMuted,
+                fontFamily: "monospace",
+              }}
             >
               {task.task_id}
             </span>
-            <span style={{ color: "#1a2535" }}>|</span>
-            <span style={{ fontSize: 10, color: "#374151" }}>
+            <span style={{ color: theme.separator }}>|</span>
+            <span style={{ fontSize: 10, color: theme.textMuted }}>
               {ts(task.started_at)} → {ts(task.completed_at)}
-              <span style={{ color: "#4b5563", marginLeft: 6 }}>
+              <span style={{ color: theme.textTertiary, marginLeft: 6 }}>
                 ({elapsed(task.started_at, task.completed_at)})
               </span>
             </span>
             {steps.length > 0 && (
               <>
-                <span style={{ color: "#1a2535" }}>|</span>
-                <span style={{ fontSize: 10, color: "#4b5563" }}>
+                <span style={{ color: theme.separator }}>|</span>
+                <span style={{ fontSize: 10, color: theme.textTertiary }}>
                   {completedSteps}/{steps.length} steps
                 </span>
               </>
@@ -618,7 +628,7 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
           }}
         >
           <StatusBadge status={task.status} />
-          <span style={{ color: "#374151", fontSize: 10 }}>
+          <span style={{ color: theme.textMuted, fontSize: 10 }}>
             {expanded ? "▲" : "▼"}
           </span>
         </div>
@@ -627,7 +637,9 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
       {/* Step progress micro-bar */}
       {steps.length > 0 && (
         <div style={{ padding: "0 14px 1px" }}>
-          <div style={{ height: 2, background: "#0d1420", borderRadius: 1 }}>
+          <div
+            style={{ height: 2, background: theme.trackBg, borderRadius: 1 }}
+          >
             <div
               style={{
                 height: "100%",
@@ -644,7 +656,10 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
       {/* Body */}
       {expanded && (
         <div
-          style={{ padding: "10px 10px 12px", borderTop: "1px solid #0d1420" }}
+          style={{
+            padding: "10px 10px 12px",
+            borderTop: `1px solid ${theme.cardBorder}`,
+          }}
         >
           {/* JSON content rendered */}
           {typeof parsedContent?.response === "string" && (
@@ -652,18 +667,18 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
               style={{
                 margin: "0 6px 10px",
                 padding: "10px 12px",
-                background: "#04080f",
-                border: "1px solid #1a2535",
+                background: theme.deepBg,
+                border: `1px solid ${theme.deepBorder}`,
                 borderRadius: 6,
                 fontSize: 12,
-                color: "#d1d5db",
+                color: theme.textPrimary,
                 lineHeight: 1.6,
               }}
             >
               <div
                 style={{
                   fontSize: 9,
-                  color: "#4b5563",
+                  color: theme.textTertiary,
                   letterSpacing: "0.1em",
                   marginBottom: 6,
                 }}
@@ -681,7 +696,7 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
             <div
               style={{
                 fontSize: 11,
-                color: "#1f2937",
+                color: theme.textDimmest,
                 padding: "6px 16px",
                 fontStyle: "italic",
               }}
@@ -706,8 +721,8 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
                   padding: "7px 12px",
                   cursor: "pointer",
                   borderRadius: 6,
-                  background: "#051a11",
-                  border: "1px solid #10b98125",
+                  background: theme.successBg,
+                  border: `1px solid ${theme.successBorder}`,
                   fontSize: 11,
                   color: "#10b981",
                 }}
@@ -727,7 +742,7 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
                     style={{
                       flex: 1,
                       fontSize: 11,
-                      color: "#4b5563",
+                      color: theme.textTertiary,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -738,12 +753,12 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
                   </span>
                 )}
                 {task.result.source_agent_name && (
-                  <span style={{ fontSize: 10, color: "#374151" }}>
+                  <span style={{ fontSize: 10, color: theme.textMuted }}>
                     {task.result.source_agent_name} →{" "}
                     {task.result.target_agent_name}
                   </span>
                 )}
-                <span style={{ color: "#374151", fontSize: 10 }}>
+                <span style={{ color: theme.textMuted, fontSize: 10 }}>
                   {resultOpen ? "▲" : "▼"}
                 </span>
               </div>
@@ -752,9 +767,9 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
                 <div
                   style={{
                     padding: "12px 14px",
-                    background: "#030a06",
+                    background: theme.deepBg,
                     borderRadius: "0 0 6px 6px",
-                    border: "1px solid #10b98118",
+                    border: `1px solid ${theme.successBorder}`,
                     borderTop: "none",
                   }}
                 >
@@ -763,7 +778,7 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
                       <div
                         style={{
                           fontSize: 9,
-                          color: "#4b5563",
+                          color: theme.textTertiary,
                           letterSpacing: "0.1em",
                           marginBottom: 6,
                         }}
@@ -774,7 +789,7 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
                         style={{
                           margin: 0,
                           fontSize: 12,
-                          color: "#d1d5db",
+                          color: theme.textPrimary,
                           lineHeight: 1.7,
                         }}
                       >
@@ -813,10 +828,12 @@ interface TimelineViewProps {
 
 function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
   const taskList = Object.values(tasks);
+  const theme = useTheme();
+  const STATUS_CONFIG = getStatusConfig(theme.mode);
 
   if (!taskList.length) {
     return (
-      <div style={{ color: "#374151", padding: 30, textAlign: "center" }}>
+      <div style={{ color: theme.textMuted, padding: 30, textAlign: "center" }}>
         No tasks.
       </div>
     );
@@ -832,7 +849,7 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
       <div
         style={{
           fontSize: 9,
-          color: "#374151",
+          color: theme.textMuted,
           marginBottom: 14,
           letterSpacing: "0.1em",
         }}
@@ -856,7 +873,7 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
               position: "absolute",
               left: `${p * 100}%`,
               fontSize: 9,
-              color: "#374151",
+              color: theme.textMuted,
               transform: "translateX(-50%)",
             }}
           >
@@ -870,7 +887,7 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
         style={{
           marginLeft: 110,
           height: 1,
-          background: "#1a2535",
+          background: theme.deepBorder,
           marginBottom: 12,
           position: "relative",
         }}
@@ -883,7 +900,7 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
               left: `${p * 100}%`,
               width: 1,
               height: 5,
-              background: "#374151",
+              background: theme.textMuted,
               top: -2,
             }}
           />
@@ -916,13 +933,15 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
               <div
                 style={{
                   fontSize: 11,
-                  color: "#60a5fa",
+                  color: theme.accentLight,
                   fontFamily: "monospace",
                 }}
               >
                 {task.assigned_to}
               </div>
-              <div style={{ fontSize: 9, color: "#374151" }}>T{i + 1}</div>
+              <div style={{ fontSize: 9, color: theme.textMuted }}>
+                T{i + 1}
+              </div>
             </div>
 
             {/* Track */}
@@ -930,7 +949,7 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
               style={{
                 flex: 1,
                 height: 28,
-                background: "#0d1420",
+                background: theme.trackBg,
                 borderRadius: 4,
                 position: "relative",
                 overflow: "visible",
@@ -997,7 +1016,7 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
                 width: 46,
                 paddingLeft: 8,
                 fontSize: 10,
-                color: "#4b5563",
+                color: theme.textTertiary,
                 flexShrink: 0,
               }}
             >
@@ -1021,6 +1040,7 @@ function SessionMetricsBar({
   metrics,
   chat,
 }: SessionMetricsProps): JSX.Element {
+  const theme = useTheme();
   const hostId = Object.values(chat.messages)[0]?.master_agent_host_id ?? "—";
 
   const items: Array<{ label: string; value: string | number; color: string }> =
@@ -1028,9 +1048,13 @@ function SessionMetricsBar({
       {
         label: "Total Messages",
         value: metrics.total_messages,
-        color: "#e5e7eb",
+        color: theme.textPrimary,
       },
-      { label: "Total Tasks", value: metrics.total_tasks, color: "#60a5fa" },
+      {
+        label: "Total Tasks",
+        value: metrics.total_tasks,
+        color: theme.accentLight,
+      },
       { label: "Tools Used", value: metrics.tools_used, color: "#a78bfa" },
       { label: "Chat Status", value: chat.status, color: "#10b981" },
       { label: "Master Host", value: hostId, color: "#f59e0b" },
@@ -1049,8 +1073,8 @@ function SessionMetricsBar({
         <div
           key={label}
           style={{
-            background: "#080e1a",
-            border: "1px solid #0d1420",
+            background: theme.cardBg,
+            border: `1px solid ${theme.cardBorder}`,
             borderRadius: 8,
             padding: "10px 12px",
             textAlign: "center",
@@ -1072,7 +1096,7 @@ function SessionMetricsBar({
           <div
             style={{
               fontSize: 9,
-              color: "#374151",
+              color: theme.textMuted,
               letterSpacing: "0.07em",
               marginTop: 3,
             }}
@@ -1095,13 +1119,14 @@ function FinalResponseBanner({
   result,
 }: FinalResponseBannerProps): JSX.Element | null {
   const [open, setOpen] = useState<boolean>(false);
+  const theme = useTheme();
   if (!result.response) return null;
 
   return (
     <div
       style={{
         marginBottom: 16,
-        border: "1px solid #1a2535",
+        border: `1px solid ${theme.deepBorder}`,
         borderRadius: 8,
         overflow: "hidden",
       }}
@@ -1114,13 +1139,13 @@ function FinalResponseBanner({
           gap: 10,
           padding: "9px 14px",
           cursor: "pointer",
-          background: "#080e1a",
+          background: theme.cardBg,
         }}
       >
         <span
           style={{
             fontSize: 9,
-            color: "#374151",
+            color: theme.textMuted,
             letterSpacing: "0.1em",
             whiteSpace: "nowrap",
           }}
@@ -1131,7 +1156,7 @@ function FinalResponseBanner({
           style={{
             flex: 1,
             fontSize: 12,
-            color: "#6b7280",
+            color: theme.textTertiary,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -1140,7 +1165,7 @@ function FinalResponseBanner({
           {result.response}
         </span>
         <StatusBadge status="COMPLETED" />
-        <span style={{ color: "#374151", fontSize: 10 }}>
+        <span style={{ color: theme.textMuted, fontSize: 10 }}>
           {open ? "▲" : "▼"}
         </span>
       </div>
@@ -1149,10 +1174,10 @@ function FinalResponseBanner({
         <div
           style={{
             padding: "14px 16px",
-            background: "#04080f",
-            borderTop: "1px solid #0d1420",
+            background: theme.deepBg,
+            borderTop: `1px solid ${theme.cardBorder}`,
             fontSize: 13,
-            color: "#d1d5db",
+            color: theme.textPrimary,
             lineHeight: 1.8,
           }}
         >
@@ -1199,6 +1224,8 @@ export default function Dashboard(): JSX.Element {
   const [pollIntervalMs, setPollIntervalMs] = useState<number>(
     POLL_INTERVALS[0] ?? 5000,
   );
+  const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
+  const theme = getTheme(themeMode);
 
   // Load available chats once on mount
   useEffect(() => {
@@ -1313,16 +1340,16 @@ export default function Dashboard(): JSX.Element {
     cursor: "pointer",
     fontFamily: "monospace",
     border: "1px solid",
-    background: active ? "#0d2340" : "transparent",
-    borderColor: active ? "#3b82f6" : "#1a2535",
-    color: active ? "#93c5fd" : "#4b5563",
+    background: active ? theme.accentBg : "transparent",
+    borderColor: active ? theme.accentBorder : theme.separator,
+    color: active ? theme.accentText : theme.textTertiary,
     transition: "all 0.15s",
   });
 
   const selectStyle: CSSProperties = {
-    background: "#080e1a",
-    border: "1px solid #1a2535",
-    color: "#e5e7eb",
+    background: theme.selectBg,
+    border: `1px solid ${theme.selectBorder}`,
+    color: theme.selectText,
     padding: "7px 10px",
     borderRadius: 6,
     fontSize: 12,
@@ -1335,7 +1362,7 @@ export default function Dashboard(): JSX.Element {
     alignItems: "center",
     gap: 6,
     fontSize: 10,
-    color: "#374151",
+    color: theme.textMuted,
     minWidth: 120,
     justifyContent: "flex-start",
   };
@@ -1397,15 +1424,17 @@ export default function Dashboard(): JSX.Element {
   }, [currentChat, selectedMsgId]);
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#030712",
-        fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
-        color: "#e5e7eb",
-      }}
-    >
-      <style>{`
+    <ThemeContext.Provider value={theme}>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: theme.pageBg,
+          fontFamily: "'IBM Plex Mono', 'Courier New', monospace",
+          color: theme.textPrimary,
+          transition: "background 0.3s ease, color 0.3s ease",
+        }}
+      >
+        <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap');
         * { box-sizing: border-box; }
         @keyframes pulse {
@@ -1417,418 +1446,478 @@ export default function Dashboard(): JSX.Element {
           to   { opacity: 1; transform: translateY(0); }
         }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: #080e1a; }
-        ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 2px; }
+        ::-webkit-scrollbar-track { background: ${theme.scrollTrack}; }
+        ::-webkit-scrollbar-thumb { background: ${theme.scrollThumb}; border-radius: 2px; }
+        body { background: ${theme.pageBg}; transition: background 0.3s ease; }
       `}</style>
 
-      {/* Top nav */}
-      <div
-        style={{
-          borderBottom: "1px solid #0d1420",
-          padding: "12px 24px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          background: "#04080f",
-        }}
-      >
+        {/* Top nav */}
         <div
           style={{
+            borderBottom: `1px solid ${theme.headerBorder}`,
+            padding: "12px 24px",
             display: "flex",
-            alignItems: "center",
-            gap: 16,
-            flexWrap: "wrap",
+            flexDirection: "column",
+            gap: 10,
+            background: theme.headerBg,
+            transition: "background 0.3s ease",
           }}
         >
-          {/* Title */}
-          <div>
-            <div
-              style={{
-                fontSize: 9,
-                color: "#3b82f6",
-                letterSpacing: "0.18em",
-                marginBottom: 2,
-              }}
-            >
-              ◈ AGENT EXECUTION MONITOR
-            </div>
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: "#f9fafb",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Execution State
-            </div>
-          </div>
-
-          <div style={{ width: 1, height: 34, background: "#1a2535" }} />
-
-          {/* Chat selector */}
-          <div style={{ position: "relative" }}>
-            <div
-              style={{
-                fontSize: 9,
-                color: "#374151",
-                letterSpacing: "0.1em",
-                marginBottom: 3,
-              }}
-            >
-              CHAT
-            </div>
-            <select
-              value={selectedChatId}
-              onChange={(e) => {
-                const nextChatId = e.target.value;
-                setSelectedChatId(nextChatId);
-                const nextMessages =
-                  executionStateByChat[nextChatId]?.messages ??
-                  BASE_STATE[nextChatId]?.messages ??
-                  {};
-                const firstMsgId =
-                  Object.values(nextMessages)[0]?.message_id ?? "";
-                setSelectedMsgId(firstMsgId);
-              }}
-              style={selectStyle}
-            >
-              {chatIds.map((id) => (
-                <option key={id} value={id}>
-                  {id}
-                </option>
-              ))}
-            </select>
-            {(chatFetchState.loading || chatFetchState.error) && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Title */}
+            <div>
               <div
                 style={{
-                  position: "absolute",
-                  left: 0,
-                  top: "100%",
-                  marginTop: 2,
-                  fontSize: 10,
-                  whiteSpace: "nowrap",
+                  fontSize: 9,
+                  color: theme.accent,
+                  letterSpacing: "0.18em",
+                  marginBottom: 2,
                 }}
               >
-                {chatFetchState.loading && (
-                  <span style={{ color: "#4b5563" }}>Loading chats…</span>
-                )}
-                {!chatFetchState.loading && chatFetchState.error && (
-                  <span style={{ color: "#ef4444" }}>
-                    Chats unavailable: {chatFetchState.error}
-                  </span>
-                )}
+                ◈ AGENT EXECUTION MONITOR
               </div>
-            )}
-          </div>
-
-          {/* Message selector */}
-          <div>
-            <div
-              style={{
-                fontSize: 9,
-                color: "#374151",
-                letterSpacing: "0.1em",
-                marginBottom: 3,
-              }}
-            >
-              MESSAGE
-            </div>
-            <select
-              value={selectedMsgId}
-              onChange={(e) => setSelectedMsgId(e.target.value)}
-              style={{ ...selectStyle, minWidth: 260 }}
-              disabled={!messages.length}
-            >
-              {messages.map((m) => (
-                <option key={m.message_id} value={m.message_id}>
-                  {m.message_id} · {m.content.slice(0, 35)}
-                  {m.content.length > 35 ? "…" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          {/* View toggle */}
-          <div style={{ display: "flex", gap: 4 }}>
-            <button
-              onClick={() => setView("tasks")}
-              style={btnStyle(view === "tasks")}
-            >
-              Tasks
-            </button>
-            <button
-              onClick={() => setView("timeline")}
-              style={btnStyle(view === "timeline")}
-            >
-              Timeline
-            </button>
-          </div>
-
-          <div style={{ width: 1, height: 22, background: "#1a2535" }} />
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button
-              onClick={handleRunTryout}
-              disabled={tryoutState.running}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 6,
-                border: "1px solid #3b82f6",
-                background: tryoutState.running ? "#0b1727" : "#0d2340",
-                color: "#93c5fd",
-                fontSize: 11,
-                cursor: tryoutState.running ? "not-allowed" : "pointer",
-                fontFamily: "monospace",
-                opacity: tryoutState.running ? 0.6 : 1,
-                transition: "all 0.15s",
-                boxShadow: "0 0 12px #1e3a8a55",
-              }}
-            >
-              {tryoutState.running ? "Simulating..." : "Simulate Task"}
-            </button>
-            {tryoutState.note && (
-              <span style={{ fontSize: 10, color: "#10b981" }}>
-                ✓ {tryoutState.note}
-              </span>
-            )}
-            {tryoutState.error && (
-              <span style={{ fontSize: 10, color: "#ef4444" }}>
-                ⚠ {tryoutState.error}
-              </span>
-            )}
-          </div>
-
-          <div style={{ width: 1, height: 22, background: "#1a2535" }} />
-
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 10, color: "#374151" }}>Poll</span>
-            {POLL_INTERVALS.map((ms) => (
-              <button
-                key={ms}
-                onClick={() => setPollIntervalMs(ms)}
+              <div
                 style={{
-                  padding: "4px 8px",
-                  borderRadius: 4,
-                  border: "1px solid",
-                  borderColor: pollIntervalMs === ms ? "#3b82f6" : "#1a2535",
-                  background: pollIntervalMs === ms ? "#0d2340" : "transparent",
-                  color: pollIntervalMs === ms ? "#93c5fd" : "#4b5563",
-                  fontSize: 10,
-                  cursor: "pointer",
-                  fontFamily: "monospace",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: theme.textBright,
+                  letterSpacing: "-0.02em",
                 }}
               >
-                {ms / 1000}s
-              </button>
-            ))}
+                Execution State
+              </div>
+            </div>
+
+            <div
+              style={{ width: 1, height: 34, background: theme.separator }}
+            />
+
+            {/* Chat selector */}
+            <div style={{ position: "relative" }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  color: theme.textMuted,
+                  letterSpacing: "0.1em",
+                  marginBottom: 3,
+                }}
+              >
+                CHAT
+              </div>
+              <select
+                value={selectedChatId}
+                onChange={(e) => {
+                  const nextChatId = e.target.value;
+                  setSelectedChatId(nextChatId);
+                  const nextMessages =
+                    executionStateByChat[nextChatId]?.messages ??
+                    BASE_STATE[nextChatId]?.messages ??
+                    {};
+                  const firstMsgId =
+                    Object.values(nextMessages)[0]?.message_id ?? "";
+                  setSelectedMsgId(firstMsgId);
+                }}
+                style={selectStyle}
+              >
+                {chatIds.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+              {(chatFetchState.loading || chatFetchState.error) && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: "100%",
+                    marginTop: 2,
+                    fontSize: 10,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {chatFetchState.loading && (
+                    <span style={{ color: theme.textTertiary }}>
+                      Loading chats…
+                    </span>
+                  )}
+                  {!chatFetchState.loading && chatFetchState.error && (
+                    <span style={{ color: "#ef4444" }}>
+                      Chats unavailable: {chatFetchState.error}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Message selector */}
+            <div>
+              <div
+                style={{
+                  fontSize: 9,
+                  color: theme.textMuted,
+                  letterSpacing: "0.1em",
+                  marginBottom: 3,
+                }}
+              >
+                MESSAGE
+              </div>
+              <select
+                value={selectedMsgId}
+                onChange={(e) => setSelectedMsgId(e.target.value)}
+                style={{ ...selectStyle, minWidth: 260 }}
+                disabled={!messages.length}
+              >
+                {messages.map((m) => (
+                  <option key={m.message_id} value={m.message_id}>
+                    {m.message_id} · {m.content.slice(0, 35)}
+                    {m.content.length > 35 ? "…" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div style={{ width: 1, height: 22, background: "#1a2535" }} />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            {/* View toggle */}
+            <div style={{ display: "flex", gap: 4 }}>
+              <button
+                onClick={() => setView("tasks")}
+                style={btnStyle(view === "tasks")}
+              >
+                Tasks
+              </button>
+              <button
+                onClick={() => setView("timeline")}
+                style={btnStyle(view === "timeline")}
+              >
+                Timeline
+              </button>
+            </div>
 
-          {/* Poll indicator */}
-          <div style={pollStatusStyle}>
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "#10b981",
-                display: "inline-block",
-                animation: "pulse 2s ease-in-out infinite",
-              }}
+            <div
+              style={{ width: 1, height: 22, background: theme.separator }}
             />
-            <span>Poll {pollIntervalMs / 1000}s · {pollAgo}s ago</span>
-            <span
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                onClick={handleRunTryout}
+                disabled={tryoutState.running}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 6,
+                  border: `1px solid ${theme.accentBorder}`,
+                  background: tryoutState.running
+                    ? theme.hoverBg
+                    : theme.accentBg,
+                  color: theme.accentText,
+                  fontSize: 11,
+                  cursor: tryoutState.running ? "not-allowed" : "pointer",
+                  fontFamily: "monospace",
+                  opacity: tryoutState.running ? 0.6 : 1,
+                  transition: "all 0.15s",
+                  boxShadow: "0 0 12px #1e3a8a55",
+                }}
+              >
+                {tryoutState.running ? "Simulating..." : "Simulate Task"}
+              </button>
+              {tryoutState.note && (
+                <span style={{ fontSize: 10, color: "#10b981" }}>
+                  ✓ {tryoutState.note}
+                </span>
+              )}
+              {tryoutState.error && (
+                <span style={{ fontSize: 10, color: "#ef4444" }}>
+                  ⚠ {tryoutState.error}
+                </span>
+              )}
+            </div>
+
+            <div
+              style={{ width: 1, height: 22, background: theme.separator }}
+            />
+
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 10, color: theme.textMuted }}>Poll</span>
+              {POLL_INTERVALS.map((ms) => (
+                <button
+                  key={ms}
+                  onClick={() => setPollIntervalMs(ms)}
+                  style={{
+                    padding: "4px 8px",
+                    borderRadius: 4,
+                    border: "1px solid",
+                    borderColor:
+                      pollIntervalMs === ms
+                        ? theme.accentBorder
+                        : theme.separator,
+                    background:
+                      pollIntervalMs === ms ? theme.accentBg : "transparent",
+                    color:
+                      pollIntervalMs === ms
+                        ? theme.accentText
+                        : theme.textTertiary,
+                    fontSize: 10,
+                    cursor: "pointer",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {ms / 1000}s
+                </button>
+              ))}
+            </div>
+
+            <div
+              style={{ width: 1, height: 22, background: theme.separator }}
+            />
+
+            {/* Poll indicator */}
+            <div style={pollStatusStyle}>
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "#10b981",
+                  display: "inline-block",
+                  animation: "pulse 2s ease-in-out infinite",
+                }}
+              />
+              <span>
+                Poll {pollIntervalMs / 1000}s · {pollAgo}s ago
+              </span>
+              <span
+                style={{
+                  color: executionFetchState.error ? "#ef4444" : "#4b5563",
+                  opacity:
+                    executionFetchState.loading || executionFetchState.error
+                      ? 1
+                      : 0,
+                  transition: "opacity 0.2s ease",
+                  minWidth: 76,
+                  textAlign: "left",
+                }}
+              >
+                {executionFetchState.error ? "Fetch error" : "Fetching…"}
+              </span>
+            </div>
+
+            <div
+              style={{ width: 1, height: 22, background: theme.separator }}
+            />
+
+            {/* Theme toggle */}
+            <button
+              onClick={() =>
+                setThemeMode((m) => (m === "dark" ? "light" : "dark"))
+              }
               style={{
-                color: executionFetchState.error ? "#ef4444" : "#4b5563",
-                opacity: executionFetchState.loading || executionFetchState.error ? 1 : 0,
-                transition: "opacity 0.2s ease",
-                minWidth: 76,
-                textAlign: "left",
+                padding: "5px 10px",
+                borderRadius: 6,
+                border: `1px solid ${theme.separator}`,
+                background: theme.hoverBg,
+                color: theme.textPrimary,
+                fontSize: 14,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginLeft: "auto",
               }}
+              title={`Switch to ${themeMode === "dark" ? "light" : "dark"} mode`}
             >
-              {executionFetchState.error ? "Fetch error" : "Fetching…"}
-            </span>
+              {themeMode === "dark" ? "☀️" : "🌙"}
+              <span style={{ fontSize: 10, fontFamily: "monospace" }}>
+                {themeMode === "dark" ? "Light" : "Dark"}
+              </span>
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div style={{ padding: "20px 24px" }}>
-        {!executionFetchState.loading && executionFetchState.error && (
-          <div
-            style={{
-              marginBottom: 12,
-              padding: "10px 12px",
-              background: "#1c0505",
-              border: "1px solid #ef444430",
-              borderRadius: 8,
-              color: "#fca5a5",
-              fontSize: 11,
-            }}
-          >
-            Failed to load execution data: {executionFetchState.error}
-          </div>
-        )}
-
-        {!loadedFromApi && (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: "14px 16px",
-              background: "#080e1a",
-              border: "1px solid #0d1420",
-              borderRadius: 10,
-              color: "#4b5563",
-              fontSize: 12,
-            }}
-          >
-            Showing fallback demo data until execution data loads.
-          </div>
-        )}
-
-        {/* Session metrics */}
-        {currentChat && (
-          <SessionMetricsBar
-            metrics={currentChat.session_metrics}
-            chat={currentChat}
-          />
-        )}
-
-        {/* Message card */}
-        {currentMessage && (
-          <div
-            style={{
-              background: "#080e1a",
-              border: "1px solid #0d1420",
-              borderRadius: 10,
-              padding: "14px 16px",
-              marginBottom: 14,
-            }}
-          >
+        {/* Content */}
+        <div style={{ padding: "20px 24px" }}>
+          {!executionFetchState.loading && executionFetchState.error && (
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: 10,
+                marginBottom: 12,
+                padding: "10px 12px",
+                background: theme.errorBg,
+                border: `1px solid ${theme.errorBorder}`,
+                borderRadius: 8,
+                color: theme.errorText,
+                fontSize: 11,
               }}
             >
-              <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
-                <div
-                  style={{
-                    fontSize: 9,
-                    color: "#374151",
-                    letterSpacing: "0.1em",
-                    marginBottom: 3,
-                  }}
-                >
-                  MESSAGE · {currentMessage.message_id}
-                  <span style={{ marginLeft: 10, color: "#1f2937" }}>
-                    stream: {currentMessage.stream_entry_id}
-                  </span>
-                  <span style={{ marginLeft: 10, color: "#1f2937" }}>
-                    host: {currentMessage.master_agent_host_id}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    color: "#f9fafb",
-                    marginBottom: 8,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {currentMessage.content}
-                </div>
-                {/* Task progress bar */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              Failed to load execution data: {executionFetchState.error}
+            </div>
+          )}
+
+          {!loadedFromApi && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "14px 16px",
+                background: theme.infoBg,
+                border: `1px solid ${theme.cardBorder}`,
+                borderRadius: 10,
+                color: theme.textTertiary,
+                fontSize: 12,
+              }}
+            >
+              Showing fallback demo data until execution data loads.
+            </div>
+          )}
+
+          {/* Session metrics */}
+          {currentChat && (
+            <SessionMetricsBar
+              metrics={currentChat.session_metrics}
+              chat={currentChat}
+            />
+          )}
+
+          {/* Message card */}
+          {currentMessage && (
+            <div
+              style={{
+                background: theme.cardBg,
+                border: `1px solid ${theme.cardBorder}`,
+                borderRadius: 10,
+                padding: "14px 16px",
+                marginBottom: 14,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
                   <div
                     style={{
-                      flex: 1,
-                      height: 3,
-                      background: "#0d1420",
-                      borderRadius: 2,
+                      fontSize: 9,
+                      color: theme.textMuted,
+                      letterSpacing: "0.1em",
+                      marginBottom: 3,
                     }}
+                  >
+                    MESSAGE · {currentMessage.message_id}
+                    <span style={{ marginLeft: 10, color: theme.textDimmest }}>
+                      stream: {currentMessage.stream_entry_id}
+                    </span>
+                    <span style={{ marginLeft: 10, color: theme.textDimmest }}>
+                      host: {currentMessage.master_agent_host_id}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      color: theme.textBright,
+                      marginBottom: 8,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {currentMessage.content}
+                  </div>
+                  {/* Task progress bar */}
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 10 }}
                   >
                     <div
                       style={{
-                        height: "100%",
-                        width: `${taskList.length ? (completedTaskCount / taskList.length) * 100 : 0}%`,
-                        background: "#10b981",
-                        transition: "width 0.5s",
+                        flex: 1,
+                        height: 3,
+                        background: theme.trackBg,
                         borderRadius: 2,
                       }}
-                    />
+                    >
+                      <div
+                        style={{
+                          height: "100%",
+                          width: `${taskList.length ? (completedTaskCount / taskList.length) * 100 : 0}%`,
+                          background: "#10b981",
+                          transition: "width 0.5s",
+                          borderRadius: 2,
+                        }}
+                      />
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: theme.textTertiary,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {completedTaskCount}/{taskList.length} tasks
+                    </span>
                   </div>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: "#4b5563",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {completedTaskCount}/{taskList.length} tasks
-                  </span>
                 </div>
+                <StatusBadge status={currentMessage.status} size="md" />
               </div>
-              <StatusBadge status={currentMessage.status} size="md" />
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Final response */}
-        {currentMessage?.result && (
-          <FinalResponseBanner result={currentMessage.result} />
-        )}
+          {/* Final response */}
+          {currentMessage?.result && (
+            <FinalResponseBanner result={currentMessage.result} />
+          )}
 
-        {/* Main view */}
-        {view === "tasks" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {taskList.length === 0 ? (
-              <div
-                style={{
-                  color: "#1f2937",
-                  textAlign: "center",
-                  padding: 60,
-                  fontSize: 13,
-                  fontStyle: "italic",
-                }}
-              >
-                No tasks for this message.
-              </div>
-            ) : (
-              taskList.map((task, i) => (
-                <TaskCard key={task.task_id} task={task} index={i} />
-              ))
-            )}
-          </div>
-        ) : (
-          <div
-            style={{
-              background: "#080e1a",
-              border: "1px solid #0d1420",
-              borderRadius: 10,
-              padding: "18px 20px",
-            }}
-          >
-            <TimelineView
-              tasks={tasks}
-              nowSeconds={Math.floor(lastPoll / 1000)}
-            />
-          </div>
-        )}
+          {/* Main view */}
+          {view === "tasks" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {taskList.length === 0 ? (
+                <div
+                  style={{
+                    color: theme.textDimmest,
+                    textAlign: "center",
+                    padding: 60,
+                    fontSize: 13,
+                    fontStyle: "italic",
+                  }}
+                >
+                  No tasks for this message.
+                </div>
+              ) : (
+                taskList.map((task, i) => (
+                  <TaskCard key={task.task_id} task={task} index={i} />
+                ))
+              )}
+            </div>
+          ) : (
+            <div
+              style={{
+                background: theme.cardBg,
+                border: `1px solid ${theme.cardBorder}`,
+                borderRadius: 10,
+                padding: "18px 20px",
+              }}
+            >
+              <TimelineView
+                tasks={tasks}
+                nowSeconds={Math.floor(lastPoll / 1000)}
+              />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </ThemeContext.Provider>
   );
 }
