@@ -1330,6 +1330,16 @@ export default function Dashboard(): JSX.Element {
     appearance: "none",
   };
 
+  const pollStatusStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 10,
+    color: "#374151",
+    minWidth: 120,
+    justifyContent: "flex-start",
+  };
+
   const handleRunTryout = async (): Promise<void> => {
     const nowSec = Math.floor(Date.now() / 1000);
     const chatId = `chat_tryout_${nowSec}`;
@@ -1417,14 +1427,19 @@ export default function Dashboard(): JSX.Element {
           borderBottom: "1px solid #0d1420",
           padding: "12px 24px",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          flexDirection: "column",
+          gap: 10,
           background: "#04080f",
-          gap: 16,
-          flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
           {/* Title */}
           <div>
             <div
@@ -1535,7 +1550,14 @@ export default function Dashboard(): JSX.Element {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
           {/* View toggle */}
           <div style={{ display: "flex", gap: 4 }}>
             <button
@@ -1614,15 +1636,7 @@ export default function Dashboard(): JSX.Element {
           <div style={{ width: 1, height: 22, background: "#1a2535" }} />
 
           {/* Poll indicator */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 10,
-              color: "#374151",
-            }}
-          >
+          <div style={pollStatusStyle}>
             <span
               style={{
                 width: 6,
@@ -1633,15 +1647,18 @@ export default function Dashboard(): JSX.Element {
                 animation: "pulse 2s ease-in-out infinite",
               }}
             />
-            Poll {pollIntervalMs / 1000}s · {pollAgo}s ago
-            {executionFetchState.loading && (
-              <span style={{ color: "#4b5563", marginLeft: 6 }}>Fetching…</span>
-            )}
-            {!executionFetchState.loading && executionFetchState.error && (
-              <span style={{ color: "#ef4444", marginLeft: 6 }}>
-                Fetch error
-              </span>
-            )}
+            <span>Poll {pollIntervalMs / 1000}s · {pollAgo}s ago</span>
+            <span
+              style={{
+                color: executionFetchState.error ? "#ef4444" : "#4b5563",
+                opacity: executionFetchState.loading || executionFetchState.error ? 1 : 0,
+                transition: "opacity 0.2s ease",
+                minWidth: 76,
+                textAlign: "left",
+              }}
+            >
+              {executionFetchState.error ? "Fetch error" : "Fetching…"}
+            </span>
           </div>
         </div>
       </div>
