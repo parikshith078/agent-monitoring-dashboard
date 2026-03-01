@@ -14,7 +14,9 @@ import { redisApi, type AvailableChat } from "./external/redis-api";
 import { runTryoutSimulation } from "./tryout/tryout-simulator";
 
 const POLL_INTERVALS = (() => {
-  const raw = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_POLL_INTERVALS ?? "2000,5000";
+  const raw =
+    (import.meta as { env?: Record<string, string | undefined> }).env
+      ?.VITE_POLL_INTERVALS ?? "2000,5000";
   const parsed = raw
     .split(",")
     .map((s) => parseInt(s.trim(), 10))
@@ -22,113 +24,126 @@ const POLL_INTERVALS = (() => {
   return parsed.length ? parsed : [5000];
 })();
 
-const STEP_DELAY_FAST = Number((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_SIM_STEP_DELAY_FAST ?? 3000);
-const STEP_DELAY_SLOW = Number((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_SIM_STEP_DELAY_SLOW ?? 6000);
+const STEP_DELAY_FAST = Number(
+  (import.meta as { env?: Record<string, string | undefined> }).env
+    ?.VITE_SIM_STEP_DELAY_FAST ?? 3000,
+);
+const STEP_DELAY_SLOW = Number(
+  (import.meta as { env?: Record<string, string | undefined> }).env
+    ?.VITE_SIM_STEP_DELAY_SLOW ?? 6000,
+);
 
 // ─── Dummy Data ───────────────────────────────────────────────────────────────
 
 const BASE_STATE: Record<string, ExecutionState> = {
-  "chat_test_7": {
-    "chat_id": "chat_test_7",
-    "tenant_id": "01ka8bgyan4mn3js75bh7z9xr1",
-    "created_at": 1772169449,
-    "status": "ACTIVE",
-    "session_metrics": { "total_messages": 7, "total_tasks": 10, "tools_used": 8 },
-    "last_activity_at": 1772197410,
-    "current_message_id": "msg_test_7",
-    "messages": {
-      "msg_test_7": {
-        "message_id": "msg_test_7",
-        "master_agent_id": "master_agent",
-        "master_agent_host_id": "192.168.1.49",
-        "stream_entry_id": "1772197368592-0",
-        "filters": { "hub_access": ["01kcgmvnc7g6r7kdad2e7wrwbn"] },
-        "role": "USER",
-        "status": "COMPLETED",
-        "content": "Give the summary for thor and stolen hammer",
-        "created_at": 1772197366,
-        "updated_at": 1772197410,
-        "parent_message_id": null,
-        "result": {
-          "task_id": "01KJFK4PFHKXXZF597PV96HRJY",
-          "response": "I'm sorry, but I couldn't retrieve the summary of Thor and the stolen hammer. Could you please clarify or provide more details?",
-          "response_type": "user_response",
+  chat_test_7: {
+    chat_id: "chat_test_7",
+    tenant_id: "01ka8bgyan4mn3js75bh7z9xr1",
+    created_at: 1772169449,
+    status: "ACTIVE",
+    session_metrics: { total_messages: 7, total_tasks: 10, tools_used: 8 },
+    last_activity_at: 1772197410,
+    current_message_id: "msg_test_7",
+    messages: {
+      msg_test_7: {
+        message_id: "msg_test_7",
+        master_agent_id: "master_agent",
+        master_agent_host_id: "192.168.1.49",
+        stream_entry_id: "1772197368592-0",
+        filters: { hub_access: ["01kcgmvnc7g6r7kdad2e7wrwbn"] },
+        role: "USER",
+        status: "COMPLETED",
+        content: "Give the summary for thor and stolen hammer",
+        created_at: 1772197366,
+        updated_at: 1772197410,
+        parent_message_id: null,
+        result: {
+          task_id: "01KJFK4PFHKXXZF597PV96HRJY",
+          response:
+            "I'm sorry, but I couldn't retrieve the summary of Thor and the stolen hammer. Could you please clarify or provide more details?",
+          response_type: "user_response",
         },
-        "tasks": {
+        tasks: {
           "01KJFK3YF7KZ4AZ1S1TT3KZR2T": {
-            "task_id": "01KJFK3YF7KZ4AZ1S1TT3KZR2T",
-            "task_type": "AGENT",
-            "stream_id": "1772197378699-0",
-            "message_id": "msg_test_7",
-            "assigned_by": "master_agent",
-            "master_agent_host_id": "192.168.1.49",
-            "assigned_to": "rag_agent",
-            "content": "Fetch summary of Thor and stolen hammer from knowledge base",
-            "agent_host_id": "192.168.1.49",
-            "parent_task_id": null,
-            "status": "COMPLETED",
-            "created_at": 1772197366,
-            "started_at": 1772197378,
-            "completed_at": 1772197404,
-            "result": {
-              "source_agent_name": "rag_agent",
-              "source_agent_host_id": "192.168.1.49",
-              "target_agent_task": `{"response": "### Thor and the Stolen Hammer Summary\n\n- **Thor's hammer Mjölnir** is stolen by **Thrym**..."}`,
-              "target_agent_name": "master_agent",
-              "prev_task_id": "01KJFK3YF7KZ4AZ1S1TT3KZR2T",
-              "chat_id": "chat_test_7",
-              "message_id": "msg_test_7",
+            task_id: "01KJFK3YF7KZ4AZ1S1TT3KZR2T",
+            task_type: "AGENT",
+            stream_id: "1772197378699-0",
+            message_id: "msg_test_7",
+            assigned_by: "master_agent",
+            master_agent_host_id: "192.168.1.49",
+            assigned_to: "rag_agent",
+            content:
+              "Fetch summary of Thor and stolen hammer from knowledge base",
+            agent_host_id: "192.168.1.49",
+            parent_task_id: null,
+            status: "COMPLETED",
+            created_at: 1772197366,
+            started_at: 1772197378,
+            completed_at: 1772197404,
+            result: {
+              source_agent_name: "rag_agent",
+              source_agent_host_id: "192.168.1.49",
+              target_agent_task: `{"response": "### Thor and the Stolen Hammer Summary\n\n- **Thor's hammer Mjölnir** is stolen by **Thrym**..."}`,
+              target_agent_name: "master_agent",
+              prev_task_id: "01KJFK3YF7KZ4AZ1S1TT3KZR2T",
+              chat_id: "chat_test_7",
+              message_id: "msg_test_7",
             },
-            "steps": {
+            steps: {
               "01KJFK46DRNJQ2FY9P8ZR58M67": {
-                "step_id": "01KJFK46DRNJQ2FY9P8ZR58M67",
-                "task_id": "01KJFK3YF7KZ4AZ1S1TT3KZR2T",
-                "agent_id": "rag_agent",
-                "tool_id": "retrieval",
-                "status": "completed",
-                "tool_arguments": { "query": "Thor and stolen hammer summary", "query_type": "SUMMARY" },
-                "tool_result": {
-                  "isError": false,
-                  "structuredContent": {
-                    "chunk_count": 1,
-                    "success": true,
-                    "retrieved_content": [
+                step_id: "01KJFK46DRNJQ2FY9P8ZR58M67",
+                task_id: "01KJFK3YF7KZ4AZ1S1TT3KZR2T",
+                agent_id: "rag_agent",
+                tool_id: "retrieval",
+                status: "completed",
+                tool_arguments: {
+                  query: "Thor and stolen hammer summary",
+                  query_type: "SUMMARY",
+                },
+                tool_result: {
+                  isError: false,
+                  structuredContent: {
+                    chunk_count: 1,
+                    success: true,
+                    retrieved_content: [
                       {
-                        "chunk_index": 1,
-                        "filename": "Thor and the Stolen Hammer_20251215091827.docx",
-                        "text": `In the Norse myth "Thor and the Stolen Hammer," Thor discovers his powerful hammer, Mjölnir, has been stolen, posing a significant threat to Asgard's safety. The hammer, essential for protecting Asgard from enemies like the frost giants, is taken by Thrym, the king of the giants, who demands the goddess Freyja as his bride in exchange for its return. Loki, known for his cunning, offers to retrieve the hammer and flies to Jotunheim using Freyja's magical cloak. Upon learning Thrym's condition, the gods devise a plan to disguise Thor as Freyja to reclaim Mjölnir.`,
+                        chunk_index: 1,
+                        filename:
+                          "Thor and the Stolen Hammer_20251215091827.docx",
+                        text: `In the Norse myth "Thor and the Stolen Hammer," Thor discovers his powerful hammer, Mjölnir, has been stolen, posing a significant threat to Asgard's safety. The hammer, essential for protecting Asgard from enemies like the frost giants, is taken by Thrym, the king of the giants, who demands the goddess Freyja as his bride in exchange for its return. Loki, known for his cunning, offers to retrieve the hammer and flies to Jotunheim using Freyja's magical cloak. Upon learning Thrym's condition, the gods devise a plan to disguise Thor as Freyja to reclaim Mjölnir.`,
                       },
                     ],
                   },
                 },
-                "started_at": 1772197386,
-                "completed_at": 1772197389,
+                started_at: 1772197386,
+                completed_at: 1772197389,
               },
             },
           },
           "01KJFK4PFHKXXZF597PV96HRJY": {
-            "task_id": "01KJFK4PFHKXXZF597PV96HRJY",
-            "task_type": "AGENT",
-            "stream_id": "1772197403272-0",
-            "message_id": "msg_test_7",
-            "assigned_by": "rag_agent",
-            "master_agent_host_id": "192.168.1.49",
-            "assigned_to": "master_agent",
-            "content": `{"response": "### Thor and the Stolen Hammer Summary\n\n- **Thor's hammer Mjölnir** is stolen by **Thrym**..."}`,
-            "agent_host_id": "192.168.1.49",
-            "parent_task_id": null,
-            "status": "COMPLETED",
-            "created_at": 1772197366,
-            "started_at": 1772197403,
-            "completed_at": 1772197411,
-            "result": {
-              "task_id": "01KJFK4PFHKXXZF597PV96HRJY",
-              "chat_id": "chat_test_7",
-              "message_id": "msg_test_7",
-              "response": "I'm sorry, but I couldn't retrieve the summary of Thor and the stolen hammer. Could you please clarify or provide more details?",
-              "response_type": "user_response",
+            task_id: "01KJFK4PFHKXXZF597PV96HRJY",
+            task_type: "AGENT",
+            stream_id: "1772197403272-0",
+            message_id: "msg_test_7",
+            assigned_by: "rag_agent",
+            master_agent_host_id: "192.168.1.49",
+            assigned_to: "master_agent",
+            content: `{"response": "### Thor and the Stolen Hammer Summary\n\n- **Thor's hammer Mjölnir** is stolen by **Thrym**..."}`,
+            agent_host_id: "192.168.1.49",
+            parent_task_id: null,
+            status: "COMPLETED",
+            created_at: 1772197366,
+            started_at: 1772197403,
+            completed_at: 1772197411,
+            result: {
+              task_id: "01KJFK4PFHKXXZF597PV96HRJY",
+              chat_id: "chat_test_7",
+              message_id: "msg_test_7",
+              response:
+                "I'm sorry, but I couldn't retrieve the summary of Thor and the stolen hammer. Could you please clarify or provide more details?",
+              response_type: "user_response",
             },
-            "steps": {},
+            steps: {},
           },
         },
       },
@@ -141,15 +156,25 @@ const INITIAL_TIMESTAMP_MS = Date.now();
 // ─── Status Config ────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, StatusConfig> = {
-  CREATED:     { color: "#6b7280", bg: "#111827", label: "Queued",  dot: "#6b7280" },
-  IN_PROGRESS: { color: "#f59e0b", bg: "#1c1407", label: "Running", dot: "#f59e0b" },
-  COMPLETED:   { color: "#10b981", bg: "#051a11", label: "Done",    dot: "#10b981" },
-  FAILED:      { color: "#ef4444", bg: "#1c0505", label: "Failed",  dot: "#ef4444" },
-  PICKED:      { color: "#8b5cf6", bg: "#130d1f", label: "Picked",  dot: "#8b5cf6" },
+  CREATED: { color: "#6b7280", bg: "#111827", label: "Queued", dot: "#6b7280" },
+  IN_PROGRESS: {
+    color: "#f59e0b",
+    bg: "#1c1407",
+    label: "Running",
+    dot: "#f59e0b",
+  },
+  COMPLETED: { color: "#10b981", bg: "#051a11", label: "Done", dot: "#10b981" },
+  FAILED: { color: "#ef4444", bg: "#1c0505", label: "Failed", dot: "#ef4444" },
+  PICKED: { color: "#8b5cf6", bg: "#130d1f", label: "Picked", dot: "#8b5cf6" },
   // Step statuses (lowercase from API)
-  in_progress: { color: "#f59e0b", bg: "#1c1407", label: "Running", dot: "#f59e0b" },
-  completed:   { color: "#10b981", bg: "#051a11", label: "Done",    dot: "#10b981" },
-  failed:      { color: "#ef4444", bg: "#1c0505", label: "Failed",  dot: "#ef4444" },
+  in_progress: {
+    color: "#f59e0b",
+    bg: "#1c1407",
+    label: "Running",
+    dot: "#f59e0b",
+  },
+  completed: { color: "#10b981", bg: "#051a11", label: "Done", dot: "#10b981" },
+  failed: { color: "#ef4444", bg: "#1c0505", label: "Failed", dot: "#ef4444" },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -248,8 +273,22 @@ function ChunksViewer({ chunks }: ChunksViewerProps): JSX.Element {
             padding: "10px 12px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, gap: 8 }}>
-            <span style={{ fontSize: 9, color: "#3b82f6", letterSpacing: "0.08em", whiteSpace: "nowrap" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: 6,
+              gap: 8,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 9,
+                color: "#3b82f6",
+                letterSpacing: "0.08em",
+                whiteSpace: "nowrap",
+              }}
+            >
               CHUNK {chunk.chunk_index}
             </span>
             <span
@@ -264,7 +303,14 @@ function ChunksViewer({ chunks }: ChunksViewerProps): JSX.Element {
               📄 {chunk.filename}
             </span>
           </div>
-          <p style={{ margin: 0, fontSize: 11, color: "#9ca3af", lineHeight: 1.7 }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 11,
+              color: "#9ca3af",
+              lineHeight: 1.7,
+            }}
+          >
             {chunk.text}
           </p>
         </div>
@@ -324,13 +370,23 @@ function StepRow({ step, index }: StepRowProps): JSX.Element {
           transition: "background 0.15s",
         }}
         onMouseEnter={(e) => {
-          if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "#0a0e14";
+          if (!expanded)
+            (e.currentTarget as HTMLDivElement).style.background = "#0a0e14";
         }}
         onMouseLeave={(e) => {
-          if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "transparent";
+          if (!expanded)
+            (e.currentTarget as HTMLDivElement).style.background =
+              "transparent";
         }}
       >
-        <span style={{ fontSize: 10, color: "#374151", fontFamily: "monospace", minWidth: 18 }}>
+        <span
+          style={{
+            fontSize: 10,
+            color: "#374151",
+            fontFamily: "monospace",
+            minWidth: 18,
+          }}
+        >
           #{index + 1}
         </span>
         <span
@@ -356,7 +412,9 @@ function StepRow({ step, index }: StepRowProps): JSX.Element {
           ({elapsed(step.started_at, step.completed_at)})
         </span>
         <StatusBadge status={step.status} />
-        <span style={{ color: "#374151", fontSize: 10 }}>{expanded ? "▲" : "▼"}</span>
+        <span style={{ color: "#374151", fontSize: 10 }}>
+          {expanded ? "▲" : "▼"}
+        </span>
       </div>
 
       {/* Expanded detail */}
@@ -371,31 +429,59 @@ function StepRow({ step, index }: StepRowProps): JSX.Element {
           }}
         >
           <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-            <button onClick={(e) => { e.stopPropagation(); setTab("args"); }} style={tabBtnStyle("args")}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setTab("args");
+              }}
+              style={tabBtnStyle("args")}
+            >
               Arguments
             </button>
             {hasResult && (
-              <button onClick={(e) => { e.stopPropagation(); setTab("result"); }} style={tabBtnStyle("result")}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTab("result");
+                }}
+                style={tabBtnStyle("result")}
+              >
                 {chunks ? `Retrieved Chunks (${chunks.length})` : "Result"}
               </button>
             )}
           </div>
 
           {tab === "args" && (
-            <pre style={{ margin: 0, fontSize: 11, fontFamily: "monospace", color: "#9ca3af", whiteSpace: "pre-wrap" }}>
+            <pre
+              style={{
+                margin: 0,
+                fontSize: 11,
+                fontFamily: "monospace",
+                color: "#9ca3af",
+                whiteSpace: "pre-wrap",
+              }}
+            >
               {JSON.stringify(step.tool_arguments, null, 2)}
             </pre>
           )}
 
-          {tab === "result" && hasResult && (
-            chunks ? (
+          {tab === "result" &&
+            hasResult &&
+            (chunks ? (
               <ChunksViewer chunks={chunks} />
             ) : (
-              <pre style={{ margin: 0, fontSize: 11, color: "#10b981", fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
+              <pre
+                style={{
+                  margin: 0,
+                  fontSize: 11,
+                  color: "#10b981",
+                  fontFamily: "monospace",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
                 {JSON.stringify(step.tool_result, null, 2)}
               </pre>
-            )
-          )}
+            ))}
         </div>
       )}
     </div>
@@ -429,13 +515,20 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
         overflow: "hidden",
         animation: "fadeSlideIn 0.4s ease both",
         animationDelay: `${index * 80}ms`,
-        boxShadow: task.status === "IN_PROGRESS" ? `0 0 20px ${cfg.dot}10` : "none",
+        boxShadow:
+          task.status === "IN_PROGRESS" ? `0 0 20px ${cfg.dot}10` : "none",
       }}
     >
       {/* Header */}
       <div
         onClick={() => setExpanded((e) => !e)}
-        style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "13px 14px", cursor: "pointer" }}
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          padding: "13px 14px",
+          cursor: "pointer",
+        }}
       >
         {/* Index badge */}
         <div
@@ -459,9 +552,18 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Content preview */}
-          <div style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 5, lineHeight: 1.4 }}>
+          <div
+            style={{
+              fontSize: 13,
+              color: "#e5e7eb",
+              marginBottom: 5,
+              lineHeight: 1.4,
+            }}
+          >
             {parsedContent ? (
-              <span style={{ color: "#6b7280", fontStyle: "italic", fontSize: 12 }}>
+              <span
+                style={{ color: "#6b7280", fontStyle: "italic", fontSize: 12 }}
+              >
                 [JSON payload — expand to view]
               </span>
             ) : (
@@ -470,31 +572,55 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
           </div>
 
           {/* Meta row */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
             <span style={{ fontSize: 10, color: "#374151" }}>
               <span style={{ color: "#4b5563" }}>{task.assigned_by}</span>
               <span style={{ color: "#1f2937", margin: "0 5px" }}>→</span>
               <span style={{ color: "#60a5fa" }}>{task.assigned_to}</span>
             </span>
             <span style={{ color: "#1a2535" }}>|</span>
-            <span style={{ fontSize: 9, color: "#374151", fontFamily: "monospace" }}>{task.task_id}</span>
+            <span
+              style={{ fontSize: 9, color: "#374151", fontFamily: "monospace" }}
+            >
+              {task.task_id}
+            </span>
             <span style={{ color: "#1a2535" }}>|</span>
             <span style={{ fontSize: 10, color: "#374151" }}>
               {ts(task.started_at)} → {ts(task.completed_at)}
-              <span style={{ color: "#4b5563", marginLeft: 6 }}>({elapsed(task.started_at, task.completed_at)})</span>
+              <span style={{ color: "#4b5563", marginLeft: 6 }}>
+                ({elapsed(task.started_at, task.completed_at)})
+              </span>
             </span>
             {steps.length > 0 && (
               <>
                 <span style={{ color: "#1a2535" }}>|</span>
-                <span style={{ fontSize: 10, color: "#4b5563" }}>{completedSteps}/{steps.length} steps</span>
+                <span style={{ fontSize: 10, color: "#4b5563" }}>
+                  {completedSteps}/{steps.length} steps
+                </span>
               </>
             )}
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}
+        >
           <StatusBadge status={task.status} />
-          <span style={{ color: "#374151", fontSize: 10 }}>{expanded ? "▲" : "▼"}</span>
+          <span style={{ color: "#374151", fontSize: 10 }}>
+            {expanded ? "▲" : "▼"}
+          </span>
         </div>
       </div>
 
@@ -517,7 +643,9 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
 
       {/* Body */}
       {expanded && (
-        <div style={{ padding: "10px 10px 12px", borderTop: "1px solid #0d1420" }}>
+        <div
+          style={{ padding: "10px 10px 12px", borderTop: "1px solid #0d1420" }}
+        >
           {/* JSON content rendered */}
           {typeof parsedContent?.response === "string" && (
             <div
@@ -532,20 +660,38 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
                 lineHeight: 1.6,
               }}
             >
-              <div style={{ fontSize: 9, color: "#4b5563", letterSpacing: "0.1em", marginBottom: 6 }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  color: "#4b5563",
+                  letterSpacing: "0.1em",
+                  marginBottom: 6,
+                }}
+              >
                 AGENT RESPONSE PAYLOAD
               </div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{parsedContent.response as string}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>
+                {parsedContent.response as string}
+              </div>
             </div>
           )}
 
           {/* Steps */}
           {steps.length === 0 ? (
-            <div style={{ fontSize: 11, color: "#1f2937", padding: "6px 16px", fontStyle: "italic" }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#1f2937",
+                padding: "6px 16px",
+                fontStyle: "italic",
+              }}
+            >
               No steps recorded for this task.
             </div>
           ) : (
-            steps.map((step, i) => <StepRow key={step.step_id} step={step} index={i} />)
+            steps.map((step, i) => (
+              <StepRow key={step.step_id} step={step} index={i} />
+            ))
           )}
 
           {/* Task result */}
@@ -567,7 +713,15 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
                 }}
               >
                 <span style={{ fontSize: 8 }}>●</span>
-                <span style={{ fontWeight: 600, letterSpacing: "0.07em", fontSize: 9 }}>TASK RESULT</span>
+                <span
+                  style={{
+                    fontWeight: 600,
+                    letterSpacing: "0.07em",
+                    fontSize: 9,
+                  }}
+                >
+                  TASK RESULT
+                </span>
                 {task.result.response && (
                   <span
                     style={{
@@ -579,15 +733,19 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {task.result.response_type} · {task.result.response.slice(0, 60)}…
+                    {task.result.response_type} ·{" "}
+                    {task.result.response.slice(0, 60)}…
                   </span>
                 )}
                 {task.result.source_agent_name && (
                   <span style={{ fontSize: 10, color: "#374151" }}>
-                    {task.result.source_agent_name} → {task.result.target_agent_name}
+                    {task.result.source_agent_name} →{" "}
+                    {task.result.target_agent_name}
                   </span>
                 )}
-                <span style={{ color: "#374151", fontSize: 10 }}>{resultOpen ? "▲" : "▼"}</span>
+                <span style={{ color: "#374151", fontSize: 10 }}>
+                  {resultOpen ? "▲" : "▼"}
+                </span>
               </div>
 
               {resultOpen && (
@@ -602,10 +760,24 @@ function TaskCard({ task, index }: TaskCardProps): JSX.Element {
                 >
                   {task.result.response ? (
                     <>
-                      <div style={{ fontSize: 9, color: "#4b5563", letterSpacing: "0.1em", marginBottom: 6 }}>
+                      <div
+                        style={{
+                          fontSize: 9,
+                          color: "#4b5563",
+                          letterSpacing: "0.1em",
+                          marginBottom: 6,
+                        }}
+                      >
                         {task.result.response_type?.toUpperCase()}
                       </div>
-                      <p style={{ margin: 0, fontSize: 12, color: "#d1d5db", lineHeight: 1.7 }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 12,
+                          color: "#d1d5db",
+                          lineHeight: 1.7,
+                        }}
+                      >
                         {task.result.response}
                       </p>
                     </>
@@ -644,7 +816,9 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
 
   if (!taskList.length) {
     return (
-      <div style={{ color: "#374151", padding: 30, textAlign: "center" }}>No tasks.</div>
+      <div style={{ color: "#374151", padding: 30, textAlign: "center" }}>
+        No tasks.
+      </div>
     );
   }
 
@@ -655,12 +829,26 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
 
   return (
     <div>
-      <div style={{ fontSize: 9, color: "#374151", marginBottom: 14, letterSpacing: "0.1em" }}>
+      <div
+        style={{
+          fontSize: 9,
+          color: "#374151",
+          marginBottom: 14,
+          letterSpacing: "0.1em",
+        }}
+      >
         TIMELINE · {ts(minT)} → {ts(maxT)} · {span}s total
       </div>
 
       {/* Axis labels */}
-      <div style={{ marginLeft: 110, position: "relative", height: 16, marginBottom: 4 }}>
+      <div
+        style={{
+          marginLeft: 110,
+          position: "relative",
+          height: 16,
+          marginBottom: 4,
+        }}
+      >
         {ticks.map((p) => (
           <span
             key={p}
@@ -712,10 +900,26 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
         const steps = Object.values(task.steps ?? {});
 
         return (
-          <div key={task.task_id} style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+          <div
+            key={task.task_id}
+            style={{ display: "flex", alignItems: "center", marginBottom: 10 }}
+          >
             {/* Label */}
-            <div style={{ width: 110, flexShrink: 0, paddingRight: 10, textAlign: "right" }}>
-              <div style={{ fontSize: 11, color: "#60a5fa", fontFamily: "monospace" }}>
+            <div
+              style={{
+                width: 110,
+                flexShrink: 0,
+                paddingRight: 10,
+                textAlign: "right",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#60a5fa",
+                  fontFamily: "monospace",
+                }}
+              >
                 {task.assigned_to}
               </div>
               <div style={{ fontSize: 9, color: "#374151" }}>T{i + 1}</div>
@@ -750,7 +954,10 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
                   color: cfg.color,
                   overflow: "hidden",
                   whiteSpace: "nowrap",
-                  boxShadow: task.status === "IN_PROGRESS" ? `0 0 10px ${cfg.dot}` : "none",
+                  boxShadow:
+                    task.status === "IN_PROGRESS"
+                      ? `0 0 10px ${cfg.dot}`
+                      : "none",
                   minWidth: 4,
                 }}
               >
@@ -762,7 +969,8 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
               {steps.map((step) => {
                 if (!step.started_at) return null;
                 const sl = ((step.started_at - minT) / span) * 100;
-                const stepCfg = STATUS_CONFIG[step.status] ?? STATUS_CONFIG["completed"];
+                const stepCfg =
+                  STATUS_CONFIG[step.status] ?? STATUS_CONFIG["completed"];
                 return (
                   <div
                     key={step.step_id}
@@ -784,7 +992,15 @@ function TimelineView({ tasks, nowSeconds }: TimelineViewProps): JSX.Element {
             </div>
 
             {/* Duration */}
-            <div style={{ width: 46, paddingLeft: 8, fontSize: 10, color: "#4b5563", flexShrink: 0 }}>
+            <div
+              style={{
+                width: 46,
+                paddingLeft: 8,
+                fontSize: 10,
+                color: "#4b5563",
+                flexShrink: 0,
+              }}
+            >
               {elapsed(task.started_at, task.completed_at)}
             </div>
           </div>
@@ -801,19 +1017,34 @@ interface SessionMetricsProps {
   chat: ExecutionState;
 }
 
-function SessionMetricsBar({ metrics, chat }: SessionMetricsProps): JSX.Element {
+function SessionMetricsBar({
+  metrics,
+  chat,
+}: SessionMetricsProps): JSX.Element {
   const hostId = Object.values(chat.messages)[0]?.master_agent_host_id ?? "—";
 
-  const items: Array<{ label: string; value: string | number; color: string }> = [
-    { label: "Total Messages", value: metrics.total_messages, color: "#e5e7eb" },
-    { label: "Total Tasks",    value: metrics.total_tasks,    color: "#60a5fa" },
-    { label: "Tools Used",     value: metrics.tools_used,     color: "#a78bfa" },
-    { label: "Chat Status",    value: chat.status,            color: "#10b981" },
-    { label: "Master Host",    value: hostId,                 color: "#f59e0b" },
-  ];
+  const items: Array<{ label: string; value: string | number; color: string }> =
+    [
+      {
+        label: "Total Messages",
+        value: metrics.total_messages,
+        color: "#e5e7eb",
+      },
+      { label: "Total Tasks", value: metrics.total_tasks, color: "#60a5fa" },
+      { label: "Tools Used", value: metrics.tools_used, color: "#a78bfa" },
+      { label: "Chat Status", value: chat.status, color: "#10b981" },
+      { label: "Master Host", value: hostId, color: "#f59e0b" },
+    ];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 20 }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(5, 1fr)",
+        gap: 8,
+        marginBottom: 20,
+      }}
+    >
       {items.map(({ label, value, color }) => (
         <div
           key={label}
@@ -838,7 +1069,14 @@ function SessionMetricsBar({ metrics, chat }: SessionMetricsProps): JSX.Element 
           >
             {value}
           </div>
-          <div style={{ fontSize: 9, color: "#374151", letterSpacing: "0.07em", marginTop: 3 }}>
+          <div
+            style={{
+              fontSize: 9,
+              color: "#374151",
+              letterSpacing: "0.07em",
+              marginTop: 3,
+            }}
+          >
             {label}
           </div>
         </div>
@@ -853,12 +1091,21 @@ interface FinalResponseBannerProps {
   result: MessageResult;
 }
 
-function FinalResponseBanner({ result }: FinalResponseBannerProps): JSX.Element | null {
+function FinalResponseBanner({
+  result,
+}: FinalResponseBannerProps): JSX.Element | null {
   const [open, setOpen] = useState<boolean>(false);
   if (!result.response) return null;
 
   return (
-    <div style={{ marginBottom: 16, border: "1px solid #1a2535", borderRadius: 8, overflow: "hidden" }}>
+    <div
+      style={{
+        marginBottom: 16,
+        border: "1px solid #1a2535",
+        borderRadius: 8,
+        overflow: "hidden",
+      }}
+    >
       <div
         onClick={() => setOpen((o) => !o)}
         style={{
@@ -870,7 +1117,14 @@ function FinalResponseBanner({ result }: FinalResponseBannerProps): JSX.Element 
           background: "#080e1a",
         }}
       >
-        <span style={{ fontSize: 9, color: "#374151", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>
+        <span
+          style={{
+            fontSize: 9,
+            color: "#374151",
+            letterSpacing: "0.1em",
+            whiteSpace: "nowrap",
+          }}
+        >
           FINAL RESPONSE
         </span>
         <span
@@ -886,7 +1140,9 @@ function FinalResponseBanner({ result }: FinalResponseBannerProps): JSX.Element 
           {result.response}
         </span>
         <StatusBadge status="COMPLETED" />
-        <span style={{ color: "#374151", fontSize: 10 }}>{open ? "▲" : "▼"}</span>
+        <span style={{ color: "#374151", fontSize: 10 }}>
+          {open ? "▲" : "▼"}
+        </span>
       </div>
 
       {open && (
@@ -918,19 +1174,31 @@ export default function Dashboard(): JSX.Element {
   const [lastPoll, setLastPoll] = useState<number>(INITIAL_TIMESTAMP_MS);
   const [pollAgo, setPollAgo] = useState<number>(0);
   const [availableChats, setAvailableChats] = useState<AvailableChat[]>([]);
-  const [chatFetchState, setChatFetchState] = useState<{ loading: boolean; error: string | null }>({
+  const [chatFetchState, setChatFetchState] = useState<{
+    loading: boolean;
+    error: string | null;
+  }>({
     loading: false,
     error: null,
   });
-  const [executionStateByChat, setExecutionStateByChat] = useState<Record<string, ExecutionState>>({});
-  const [executionFetchState, setExecutionFetchState] = useState<{ loading: boolean; error: string | null }>({
+  const [executionStateByChat, setExecutionStateByChat] = useState<
+    Record<string, ExecutionState>
+  >({});
+  const [executionFetchState, setExecutionFetchState] = useState<{
+    loading: boolean;
+    error: string | null;
+  }>({
     loading: false,
     error: null,
   });
-  const [tryoutState, setTryoutState] = useState<{ running: boolean; note: string | null; error: string | null }>(
-    { running: false, note: null, error: null }
+  const [tryoutState, setTryoutState] = useState<{
+    running: boolean;
+    note: string | null;
+    error: string | null;
+  }>({ running: false, note: null, error: null });
+  const [pollIntervalMs, setPollIntervalMs] = useState<number>(
+    POLL_INTERVALS[0] ?? 5000,
   );
-  const [pollIntervalMs, setPollIntervalMs] = useState<number>(POLL_INTERVALS[0] ?? 5000);
 
   // Load available chats once on mount
   useEffect(() => {
@@ -949,7 +1217,10 @@ export default function Dashboard(): JSX.Element {
       })
       .catch((err) => {
         if (controller.signal.aborted) return;
-        setChatFetchState({ loading: false, error: err instanceof Error ? err.message : "Failed to load chats" });
+        setChatFetchState({
+          loading: false,
+          error: err instanceof Error ? err.message : "Failed to load chats",
+        });
       });
 
     return () => controller.abort();
@@ -960,18 +1231,28 @@ export default function Dashboard(): JSX.Element {
     let cancelled = false;
 
     const loadState = async (): Promise<void> => {
-      setExecutionFetchState((prev) => ({ ...prev, loading: true, error: null }));
+      setExecutionFetchState((prev) => ({
+        ...prev,
+        loading: true,
+        error: null,
+      }));
       try {
         const doc = await redisApi.fetchExecutionState(selectedChatId);
         if (cancelled) return;
-        setExecutionStateByChat((prev) => ({ ...prev, [selectedChatId]: doc.data }));
+        setExecutionStateByChat((prev) => ({
+          ...prev,
+          [selectedChatId]: doc.data,
+        }));
         setExecutionFetchState({ loading: false, error: null });
         setLastPoll(Date.now());
       } catch (err) {
         if (cancelled) return;
         setExecutionFetchState({
           loading: false,
-          error: err instanceof Error ? err.message : "Failed to fetch execution state",
+          error:
+            err instanceof Error
+              ? err.message
+              : "Failed to fetch execution state",
         });
       }
     };
@@ -988,7 +1269,7 @@ export default function Dashboard(): JSX.Element {
   useEffect(() => {
     const ticker = setInterval(
       () => setPollAgo(Math.round((Date.now() - lastPoll) / 1000)),
-      1000
+      1000,
     );
     return () => {
       clearInterval(ticker);
@@ -996,8 +1277,11 @@ export default function Dashboard(): JSX.Element {
   }, [lastPoll]);
 
   const dynamicChatIds = availableChats.map((c) => c.chatId);
-  const chatIds = dynamicChatIds.length ? dynamicChatIds : Object.keys(BASE_STATE);
-  const executionState = executionStateByChat[selectedChatId] ?? BASE_STATE[selectedChatId];
+  const chatIds = dynamicChatIds.length
+    ? dynamicChatIds
+    : Object.keys(BASE_STATE);
+  const executionState =
+    executionStateByChat[selectedChatId] ?? BASE_STATE[selectedChatId];
   const loadedFromApi = Boolean(executionStateByChat[selectedChatId]);
 
   useEffect(() => {
@@ -1005,14 +1289,20 @@ export default function Dashboard(): JSX.Element {
     if (!chatIds.includes(selectedChatId)) {
       const fallback = chatIds[0];
       setSelectedChatId(fallback);
-      const nextMessages = executionStateByChat[fallback]?.messages ?? BASE_STATE[fallback]?.messages ?? {};
+      const nextMessages =
+        executionStateByChat[fallback]?.messages ??
+        BASE_STATE[fallback]?.messages ??
+        {};
       const firstMsgId = Object.values(nextMessages)[0]?.message_id ?? "";
       setSelectedMsgId(firstMsgId);
     }
   }, [chatIds, executionStateByChat, selectedChatId]);
   const currentChat: ExecutionState | undefined = executionState;
-  const messages: MessageState[] = currentChat ? Object.values(currentChat.messages) : [];
-  const currentMessage: MessageState | undefined = currentChat?.messages[selectedMsgId];
+  const messages: MessageState[] = currentChat
+    ? Object.values(currentChat.messages)
+    : [];
+  const currentMessage: MessageState | undefined =
+    currentChat?.messages[selectedMsgId];
   const tasks: Record<string, TaskState> = currentMessage?.tasks ?? {};
   const taskList: TaskState[] = Object.values(tasks);
 
@@ -1044,9 +1334,14 @@ export default function Dashboard(): JSX.Element {
     const nowSec = Math.floor(Date.now() / 1000);
     const chatId = `chat_tryout_${nowSec}`;
     const messageId = `${chatId}_msg_1`;
-    setTryoutState({ running: true, note: `Simulating ${chatId}`, error: null });
+    setTryoutState({
+      running: true,
+      note: `Simulating ${chatId}`,
+      error: null,
+    });
     const minPoll = Math.min(...POLL_INTERVALS);
-    const stepDelayMs = pollIntervalMs <= minPoll ? STEP_DELAY_FAST : STEP_DELAY_SLOW;
+    const stepDelayMs =
+      pollIntervalMs <= minPoll ? STEP_DELAY_FAST : STEP_DELAY_SLOW;
 
     setAvailableChats((prev) => {
       if (prev.some((c) => c.chatId === chatId)) return prev;
@@ -1057,17 +1352,24 @@ export default function Dashboard(): JSX.Element {
 
     try {
       await runTryoutSimulation({ chatId, messageId, stepDelayMs });
-      setTryoutState({ running: false, note: `Simulated ${chatId}`, error: null });
+      setTryoutState({
+        running: false,
+        note: `Simulated ${chatId}`,
+        error: null,
+      });
     } catch (err) {
       setTryoutState({
         running: false,
         note: null,
-        error: err instanceof Error ? err.message : "Failed to create try-out run",
+        error:
+          err instanceof Error ? err.message : "Failed to create try-out run",
       });
     }
   };
 
-  const completedTaskCount = taskList.filter((t) => t.status === "COMPLETED").length;
+  const completedTaskCount = taskList.filter(
+    (t) => t.status === "COMPLETED",
+  ).length;
 
   useEffect(() => {
     if (!currentChat) {
@@ -1125,10 +1427,24 @@ export default function Dashboard(): JSX.Element {
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           {/* Title */}
           <div>
-            <div style={{ fontSize: 9, color: "#3b82f6", letterSpacing: "0.18em", marginBottom: 2 }}>
+            <div
+              style={{
+                fontSize: 9,
+                color: "#3b82f6",
+                letterSpacing: "0.18em",
+                marginBottom: 2,
+              }}
+            >
               ◈ AGENT EXECUTION MONITOR
             </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#f9fafb", letterSpacing: "-0.02em" }}>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: "#f9fafb",
+                letterSpacing: "-0.02em",
+              }}
+            >
               Execution State
             </div>
           </div>
@@ -1136,34 +1452,73 @@ export default function Dashboard(): JSX.Element {
           <div style={{ width: 1, height: 34, background: "#1a2535" }} />
 
           {/* Chat selector */}
-          <div>
-            <div style={{ fontSize: 9, color: "#374151", letterSpacing: "0.1em", marginBottom: 3 }}>CHAT</div>
+          <div style={{ position: "relative" }}>
+            <div
+              style={{
+                fontSize: 9,
+                color: "#374151",
+                letterSpacing: "0.1em",
+                marginBottom: 3,
+              }}
+            >
+              CHAT
+            </div>
             <select
               value={selectedChatId}
               onChange={(e) => {
                 const nextChatId = e.target.value;
                 setSelectedChatId(nextChatId);
-                const nextMessages = executionStateByChat[nextChatId]?.messages ?? BASE_STATE[nextChatId]?.messages ?? {};
-                const firstMsgId = Object.values(nextMessages)[0]?.message_id ?? "";
+                const nextMessages =
+                  executionStateByChat[nextChatId]?.messages ??
+                  BASE_STATE[nextChatId]?.messages ??
+                  {};
+                const firstMsgId =
+                  Object.values(nextMessages)[0]?.message_id ?? "";
                 setSelectedMsgId(firstMsgId);
               }}
               style={selectStyle}
             >
               {chatIds.map((id) => (
-                <option key={id} value={id}>{id}</option>
+                <option key={id} value={id}>
+                  {id}
+                </option>
               ))}
             </select>
-            <div style={{ marginTop: 4, minHeight: 14, fontSize: 10 }}>
-              {chatFetchState.loading && <span style={{ color: "#4b5563" }}>Loading chats…</span>}
-              {!chatFetchState.loading && chatFetchState.error && (
-                <span style={{ color: "#ef4444" }}>Chats unavailable: {chatFetchState.error}</span>
-              )}
-            </div>
+            {(chatFetchState.loading || chatFetchState.error) && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: "100%",
+                  marginTop: 2,
+                  fontSize: 10,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {chatFetchState.loading && (
+                  <span style={{ color: "#4b5563" }}>Loading chats…</span>
+                )}
+                {!chatFetchState.loading && chatFetchState.error && (
+                  <span style={{ color: "#ef4444" }}>
+                    Chats unavailable: {chatFetchState.error}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Message selector */}
           <div>
-            <div style={{ fontSize: 9, color: "#374151", letterSpacing: "0.1em", marginBottom: 3 }}>MESSAGE</div>
+            <div
+              style={{
+                fontSize: 9,
+                color: "#374151",
+                letterSpacing: "0.1em",
+                marginBottom: 3,
+              }}
+            >
+              MESSAGE
+            </div>
             <select
               value={selectedMsgId}
               onChange={(e) => setSelectedMsgId(e.target.value)}
@@ -1180,24 +1535,30 @@ export default function Dashboard(): JSX.Element {
           </div>
         </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {/* View toggle */}
-            <div style={{ display: "flex", gap: 4 }}>
-              <button onClick={() => setView("tasks")} style={btnStyle(view === "tasks")}>
-                Tasks
-              </button>
-              <button onClick={() => setView("timeline")} style={btnStyle(view === "timeline")}>
-                Timeline
-              </button>
-            </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* View toggle */}
+          <div style={{ display: "flex", gap: 4 }}>
+            <button
+              onClick={() => setView("tasks")}
+              style={btnStyle(view === "tasks")}
+            >
+              Tasks
+            </button>
+            <button
+              onClick={() => setView("timeline")}
+              style={btnStyle(view === "timeline")}
+            >
+              Timeline
+            </button>
+          </div>
 
-            <div style={{ width: 1, height: 22, background: "#1a2535" }} />
+          <div style={{ width: 1, height: 22, background: "#1a2535" }} />
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button
-                onClick={handleRunTryout}
-                disabled={tryoutState.running}
-                style={{
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              onClick={handleRunTryout}
+              disabled={tryoutState.running}
+              style={{
                 padding: "6px 12px",
                 borderRadius: 6,
                 border: "1px solid #3b82f6",
@@ -1214,10 +1575,14 @@ export default function Dashboard(): JSX.Element {
               {tryoutState.running ? "Simulating..." : "Simulate Task"}
             </button>
             {tryoutState.note && (
-              <span style={{ fontSize: 10, color: "#10b981" }}>✓ {tryoutState.note}</span>
+              <span style={{ fontSize: 10, color: "#10b981" }}>
+                ✓ {tryoutState.note}
+              </span>
             )}
             {tryoutState.error && (
-              <span style={{ fontSize: 10, color: "#ef4444" }}>⚠ {tryoutState.error}</span>
+              <span style={{ fontSize: 10, color: "#ef4444" }}>
+                ⚠ {tryoutState.error}
+              </span>
             )}
           </div>
 
@@ -1249,7 +1614,15 @@ export default function Dashboard(): JSX.Element {
           <div style={{ width: 1, height: 22, background: "#1a2535" }} />
 
           {/* Poll indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#374151" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 10,
+              color: "#374151",
+            }}
+          >
             <span
               style={{
                 width: 6,
@@ -1261,9 +1634,13 @@ export default function Dashboard(): JSX.Element {
               }}
             />
             Poll {pollIntervalMs / 1000}s · {pollAgo}s ago
-            {executionFetchState.loading && <span style={{ color: "#4b5563", marginLeft: 6 }}>Fetching…</span>}
+            {executionFetchState.loading && (
+              <span style={{ color: "#4b5563", marginLeft: 6 }}>Fetching…</span>
+            )}
             {!executionFetchState.loading && executionFetchState.error && (
-              <span style={{ color: "#ef4444", marginLeft: 6 }}>Fetch error</span>
+              <span style={{ color: "#ef4444", marginLeft: 6 }}>
+                Fetch error
+              </span>
             )}
           </div>
         </div>
@@ -1305,7 +1682,10 @@ export default function Dashboard(): JSX.Element {
 
         {/* Session metrics */}
         {currentChat && (
-          <SessionMetricsBar metrics={currentChat.session_metrics} chat={currentChat} />
+          <SessionMetricsBar
+            metrics={currentChat.session_metrics}
+            chat={currentChat}
+          />
         )}
 
         {/* Message card */}
@@ -1328,7 +1708,14 @@ export default function Dashboard(): JSX.Element {
               }}
             >
               <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
-                <div style={{ fontSize: 9, color: "#374151", letterSpacing: "0.1em", marginBottom: 3 }}>
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: "#374151",
+                    letterSpacing: "0.1em",
+                    marginBottom: 3,
+                  }}
+                >
                   MESSAGE · {currentMessage.message_id}
                   <span style={{ marginLeft: 10, color: "#1f2937" }}>
                     stream: {currentMessage.stream_entry_id}
@@ -1337,12 +1724,26 @@ export default function Dashboard(): JSX.Element {
                     host: {currentMessage.master_agent_host_id}
                   </span>
                 </div>
-                <div style={{ fontSize: 14, color: "#f9fafb", marginBottom: 8, lineHeight: 1.5 }}>
+                <div
+                  style={{
+                    fontSize: 14,
+                    color: "#f9fafb",
+                    marginBottom: 8,
+                    lineHeight: 1.5,
+                  }}
+                >
                   {currentMessage.content}
                 </div>
                 {/* Task progress bar */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ flex: 1, height: 3, background: "#0d1420", borderRadius: 2 }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 3,
+                      background: "#0d1420",
+                      borderRadius: 2,
+                    }}
+                  >
                     <div
                       style={{
                         height: "100%",
@@ -1353,7 +1754,13 @@ export default function Dashboard(): JSX.Element {
                       }}
                     />
                   </div>
-                  <span style={{ fontSize: 10, color: "#4b5563", whiteSpace: "nowrap" }}>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: "#4b5563",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {completedTaskCount}/{taskList.length} tasks
                   </span>
                 </div>
@@ -1364,19 +1771,29 @@ export default function Dashboard(): JSX.Element {
         )}
 
         {/* Final response */}
-        {currentMessage?.result && <FinalResponseBanner result={currentMessage.result} />}
+        {currentMessage?.result && (
+          <FinalResponseBanner result={currentMessage.result} />
+        )}
 
         {/* Main view */}
         {view === "tasks" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {taskList.length === 0 ? (
               <div
-                style={{ color: "#1f2937", textAlign: "center", padding: 60, fontSize: 13, fontStyle: "italic" }}
+                style={{
+                  color: "#1f2937",
+                  textAlign: "center",
+                  padding: 60,
+                  fontSize: 13,
+                  fontStyle: "italic",
+                }}
               >
                 No tasks for this message.
               </div>
             ) : (
-              taskList.map((task, i) => <TaskCard key={task.task_id} task={task} index={i} />)
+              taskList.map((task, i) => (
+                <TaskCard key={task.task_id} task={task} index={i} />
+              ))
             )}
           </div>
         ) : (
@@ -1388,7 +1805,10 @@ export default function Dashboard(): JSX.Element {
               padding: "18px 20px",
             }}
           >
-            <TimelineView tasks={tasks} nowSeconds={Math.floor(lastPoll / 1000)} />
+            <TimelineView
+              tasks={tasks}
+              nowSeconds={Math.floor(lastPoll / 1000)}
+            />
           </div>
         )}
       </div>
