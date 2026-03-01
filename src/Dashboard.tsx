@@ -909,6 +909,11 @@ export default function Dashboard(): JSX.Element {
     loading: false,
     error: null,
   });
+  const [executionStateByChat, setExecutionStateByChat] = useState<Record<string, ExecutionState>>({});
+  const [executionFetchState, setExecutionFetchState] = useState<{ loading: boolean; error: string | null }>({
+    loading: false,
+    error: null,
+  });
 
   // Load available chats once on mount
   useEffect(() => {
@@ -933,18 +938,35 @@ export default function Dashboard(): JSX.Element {
     return () => controller.abort();
   }, []);
 
-  // Polling — replace setLastPoll body with your API fetch
+  // Fetch execution state for the selected chat and poll every 5s
   useEffect(() => {
-    const poll = setInterval(() => {
-      // fetch(`/api/execution-state/${selectedChatId}`)
-      //   .then(r => r.json())
-      //   .then(data => setState(data))
-      setLastPoll(Date.now());
-    }, 5000);
-    return () => {
-      clearInterval(poll);
+    let cancelled = false;
+
+    const loadState = async (): Promise<void> => {
+      setExecutionFetchState((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const doc = await redisApi.fetchExecutionState(selectedChatId);
+        if (cancelled) return;
+        setExecutionStateByChat((prev) => ({ ...prev, [selectedChatId]: doc.data }));
+        setExecutionFetchState({ loading: false, error: null });
+        setLastPoll(Date.now());
+      } catch (err) {
+        if (cancelled) return;
+        setExecutionFetchState({
+          loading: false,
+          error: err instanceof Error ? err.message : "Failed to fetch execution state",
+        });
+      }
     };
-  }, []);
+
+    loadState();
+    const interval = setInterval(loadState, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [selectedChatId]);
 
   useEffect(() => {
     const ticker = setInterval(
@@ -958,19 +980,20 @@ export default function Dashboard(): JSX.Element {
 
   const dynamicChatIds = availableChats.map((c) => c.chatId);
   const chatIds = dynamicChatIds.length ? dynamicChatIds : Object.keys(BASE_STATE);
-  const hasExecutionData = Boolean(BASE_STATE[selectedChatId]);
+  const executionState = executionStateByChat[selectedChatId] ?? BASE_STATE[selectedChatId];
+  const loadedFromApi = Boolean(executionStateByChat[selectedChatId]);
 
   useEffect(() => {
     if (!chatIds.length) return;
     if (!chatIds.includes(selectedChatId)) {
       const fallback = chatIds[0];
       setSelectedChatId(fallback);
-      const nextMessages = BASE_STATE[fallback]?.messages ?? {};
+      const nextMessages = executionStateByChat[fallback]?.messages ?? BASE_STATE[fallback]?.messages ?? {};
       const firstMsgId = Object.values(nextMessages)[0]?.message_id ?? "";
       setSelectedMsgId(firstMsgId);
     }
-  }, [chatIds, selectedChatId]);
-  const currentChat: ExecutionState | undefined = hasExecutionData ? BASE_STATE[selectedChatId] : undefined;
+  }, [chatIds, executionStateByChat, selectedChatId]);
+  const currentChat: ExecutionState | undefined = executionState;
   const messages: MessageState[] = currentChat ? Object.values(currentChat.messages) : [];
   const currentMessage: MessageState | undefined = currentChat?.messages[selectedMsgId];
   const tasks: Record<string, TaskState> = currentMessage?.tasks ?? {};
@@ -1001,6 +1024,21 @@ export default function Dashboard(): JSX.Element {
   };
 
   const completedTaskCount = taskList.filter((t) => t.status === "COMPLETED").length;
+
+  useEffect(() => {
+    if (!currentChat) {
+      setSelectedMsgId("");
+      return;
+    }
+    const msgIds = Object.keys(currentChat.messages ?? {});
+    if (!msgIds.length) {
+      setSelectedMsgId("");
+      return;
+    }
+    if (!msgIds.includes(selectedMsgId)) {
+      setSelectedMsgId(msgIds[0]);
+    }
+  }, [currentChat, selectedMsgId]);
 
   return (
     <div
@@ -1061,7 +1099,7 @@ export default function Dashboard(): JSX.Element {
               onChange={(e) => {
                 const nextChatId = e.target.value;
                 setSelectedChatId(nextChatId);
-                const nextMessages = BASE_STATE[nextChatId]?.messages ?? {};
+                const nextMessages = executionStateByChat[nextChatId]?.messages ?? BASE_STATE[nextChatId]?.messages ?? {};
                 const firstMsgId = Object.values(nextMessages)[0]?.message_id ?? "";
                 setSelectedMsgId(firstMsgId);
               }}
@@ -1124,13 +1162,33 @@ export default function Dashboard(): JSX.Element {
               }}
             />
             Poll 5s · {pollAgo}s ago
+            {executionFetchState.loading && <span style={{ color: "#4b5563", marginLeft: 6 }}>Fetching…</span>}
+            {!executionFetchState.loading && executionFetchState.error && (
+              <span style={{ color: "#ef4444", marginLeft: 6 }}>Fetch error</span>
+            )}
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div style={{ padding: "20px 24px" }}>
-        {!hasExecutionData && (
+        {!executionFetchState.loading && executionFetchState.error && (
+          <div
+            style={{
+              marginBottom: 12,
+              padding: "10px 12px",
+              background: "#1c0505",
+              border: "1px solid #ef444430",
+              borderRadius: 8,
+              color: "#fca5a5",
+              fontSize: 11,
+            }}
+          >
+            Failed to load execution data: {executionFetchState.error}
+          </div>
+        )}
+
+        {!loadedFromApi && (
           <div
             style={{
               marginBottom: 16,
@@ -1142,7 +1200,7 @@ export default function Dashboard(): JSX.Element {
               fontSize: 12,
             }}
           >
-            Execution data for this chat is not loaded yet.
+            Showing fallback demo data until execution data loads.
           </div>
         )}
 
