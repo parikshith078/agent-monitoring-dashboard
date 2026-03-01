@@ -81,7 +81,10 @@ export class RedisApi {
   }
 }
 
-export const redisApi = new RedisApi();
+const REDIS_API_BASE = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_REDIS_API_BASE
+  ?? "http://100.65.209.109:7018";
+
+export const redisApi = new RedisApi(REDIS_API_BASE);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 

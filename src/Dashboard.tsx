@@ -13,6 +13,18 @@ import type {
 import { redisApi, type AvailableChat } from "./external/redis-api";
 import { runTryoutSimulation } from "./tryout/tryout-simulator";
 
+const POLL_INTERVALS = (() => {
+  const raw = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_POLL_INTERVALS ?? "2000,5000";
+  const parsed = raw
+    .split(",")
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  return parsed.length ? parsed : [5000];
+})();
+
+const STEP_DELAY_FAST = Number((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_SIM_STEP_DELAY_FAST ?? 3000);
+const STEP_DELAY_SLOW = Number((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_SIM_STEP_DELAY_SLOW ?? 6000);
+
 // ─── Dummy Data ───────────────────────────────────────────────────────────────
 
 const BASE_STATE: Record<string, ExecutionState> = {
@@ -918,7 +930,7 @@ export default function Dashboard(): JSX.Element {
   const [tryoutState, setTryoutState] = useState<{ running: boolean; note: string | null; error: string | null }>(
     { running: false, note: null, error: null }
   );
-  const [pollIntervalMs, setPollIntervalMs] = useState<number>(5000);
+  const [pollIntervalMs, setPollIntervalMs] = useState<number>(POLL_INTERVALS[0] ?? 5000);
 
   // Load available chats once on mount
   useEffect(() => {
@@ -1033,6 +1045,8 @@ export default function Dashboard(): JSX.Element {
     const chatId = `chat_tryout_${nowSec}`;
     const messageId = `${chatId}_msg_1`;
     setTryoutState({ running: true, note: `Simulating ${chatId}`, error: null });
+    const minPoll = Math.min(...POLL_INTERVALS);
+    const stepDelayMs = pollIntervalMs <= minPoll ? STEP_DELAY_FAST : STEP_DELAY_SLOW;
 
     setAvailableChats((prev) => {
       if (prev.some((c) => c.chatId === chatId)) return prev;
@@ -1042,7 +1056,7 @@ export default function Dashboard(): JSX.Element {
     setSelectedMsgId(messageId);
 
     try {
-      await runTryoutSimulation({ chatId, messageId, stepDelayMs: pollIntervalMs === 2000 ? 3000 : 6000 });
+      await runTryoutSimulation({ chatId, messageId, stepDelayMs });
       setTryoutState({ running: false, note: `Simulated ${chatId}`, error: null });
     } catch (err) {
       setTryoutState({
@@ -1211,7 +1225,7 @@ export default function Dashboard(): JSX.Element {
 
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 10, color: "#374151" }}>Poll</span>
-            {[2000, 5000].map((ms) => (
+            {POLL_INTERVALS.map((ms) => (
               <button
                 key={ms}
                 onClick={() => setPollIntervalMs(ms)}

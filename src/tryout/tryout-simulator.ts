@@ -1,7 +1,8 @@
 import type { ExecutionState, MessageState, StepState, TaskState } from "../types";
 
-const API_BASE = "http://100.65.209.109:7018";
-const STEP_DELAY_MS = 6000;
+const API_BASE = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_REDIS_API_BASE
+  ?? "http://100.65.209.109:7018";
+const STEP_DELAY_MS = Number((import.meta as { env?: Record<string, string | undefined> }).env?.VITE_SIM_STEP_DELAY_SLOW ?? 6000);
 
 export interface TryoutOptions {
   chatId?: string;
