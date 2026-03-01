@@ -11,6 +11,7 @@ import type {
   RetrievedChunk,
 } from "./types";
 import { redisApi, type AvailableChat } from "./external/redis-api";
+import { runTryoutSimulation } from "./tryout/tryout-simulator";
 
 // ─── Dummy Data ───────────────────────────────────────────────────────────────
 
@@ -914,6 +915,10 @@ export default function Dashboard(): JSX.Element {
     loading: false,
     error: null,
   });
+  const [tryoutState, setTryoutState] = useState<{ running: boolean; note: string | null; error: string | null }>(
+    { running: false, note: null, error: null }
+  );
+  const [pollIntervalMs, setPollIntervalMs] = useState<number>(5000);
 
   // Load available chats once on mount
   useEffect(() => {
@@ -960,13 +965,13 @@ export default function Dashboard(): JSX.Element {
     };
 
     loadState();
-    const interval = setInterval(loadState, 5000);
+    const interval = setInterval(loadState, pollIntervalMs);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [selectedChatId]);
+  }, [selectedChatId, pollIntervalMs]);
 
   useEffect(() => {
     const ticker = setInterval(
@@ -1021,6 +1026,31 @@ export default function Dashboard(): JSX.Element {
     fontSize: 12,
     cursor: "pointer",
     appearance: "none",
+  };
+
+  const handleRunTryout = async (): Promise<void> => {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const chatId = `chat_tryout_${nowSec}`;
+    const messageId = `${chatId}_msg_1`;
+    setTryoutState({ running: true, note: `Simulating ${chatId}`, error: null });
+
+    setAvailableChats((prev) => {
+      if (prev.some((c) => c.chatId === chatId)) return prev;
+      return [{ key: `execution_state:${chatId}`, chatId }, ...prev];
+    });
+    setSelectedChatId(chatId);
+    setSelectedMsgId(messageId);
+
+    try {
+      await runTryoutSimulation({ chatId, messageId, stepDelayMs: pollIntervalMs === 2000 ? 3000 : 6000 });
+      setTryoutState({ running: false, note: `Simulated ${chatId}`, error: null });
+    } catch (err) {
+      setTryoutState({
+        running: false,
+        note: null,
+        error: err instanceof Error ? err.message : "Failed to create try-out run",
+      });
+    }
   };
 
   const completedTaskCount = taskList.filter((t) => t.status === "COMPLETED").length;
@@ -1136,15 +1166,70 @@ export default function Dashboard(): JSX.Element {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* View toggle */}
-          <div style={{ display: "flex", gap: 4 }}>
-            <button onClick={() => setView("tasks")} style={btnStyle(view === "tasks")}>
-              Tasks
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* View toggle */}
+            <div style={{ display: "flex", gap: 4 }}>
+              <button onClick={() => setView("tasks")} style={btnStyle(view === "tasks")}>
+                Tasks
+              </button>
+              <button onClick={() => setView("timeline")} style={btnStyle(view === "timeline")}>
+                Timeline
+              </button>
+            </div>
+
+            <div style={{ width: 1, height: 22, background: "#1a2535" }} />
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                onClick={handleRunTryout}
+                disabled={tryoutState.running}
+                style={{
+                padding: "6px 12px",
+                borderRadius: 6,
+                border: "1px solid #3b82f6",
+                background: tryoutState.running ? "#0b1727" : "#0d2340",
+                color: "#93c5fd",
+                fontSize: 11,
+                cursor: tryoutState.running ? "not-allowed" : "pointer",
+                fontFamily: "monospace",
+                opacity: tryoutState.running ? 0.6 : 1,
+                transition: "all 0.15s",
+                boxShadow: "0 0 12px #1e3a8a55",
+              }}
+            >
+              {tryoutState.running ? "Simulating..." : "Simulate Task"}
             </button>
-            <button onClick={() => setView("timeline")} style={btnStyle(view === "timeline")}>
-              Timeline
-            </button>
+            {tryoutState.note && (
+              <span style={{ fontSize: 10, color: "#10b981" }}>✓ {tryoutState.note}</span>
+            )}
+            {tryoutState.error && (
+              <span style={{ fontSize: 10, color: "#ef4444" }}>⚠ {tryoutState.error}</span>
+            )}
+          </div>
+
+          <div style={{ width: 1, height: 22, background: "#1a2535" }} />
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 10, color: "#374151" }}>Poll</span>
+            {[2000, 5000].map((ms) => (
+              <button
+                key={ms}
+                onClick={() => setPollIntervalMs(ms)}
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  border: "1px solid",
+                  borderColor: pollIntervalMs === ms ? "#3b82f6" : "#1a2535",
+                  background: pollIntervalMs === ms ? "#0d2340" : "transparent",
+                  color: pollIntervalMs === ms ? "#93c5fd" : "#4b5563",
+                  fontSize: 10,
+                  cursor: "pointer",
+                  fontFamily: "monospace",
+                }}
+              >
+                {ms / 1000}s
+              </button>
+            ))}
           </div>
 
           <div style={{ width: 1, height: 22, background: "#1a2535" }} />
@@ -1161,7 +1246,7 @@ export default function Dashboard(): JSX.Element {
                 animation: "pulse 2s ease-in-out infinite",
               }}
             />
-            Poll 5s · {pollAgo}s ago
+            Poll {pollIntervalMs / 1000}s · {pollAgo}s ago
             {executionFetchState.loading && <span style={{ color: "#4b5563", marginLeft: 6 }}>Fetching…</span>}
             {!executionFetchState.loading && executionFetchState.error && (
               <span style={{ color: "#ef4444", marginLeft: 6 }}>Fetch error</span>
