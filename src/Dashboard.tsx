@@ -10,6 +10,7 @@ import type {
   StatusConfig,
   RetrievedChunk,
 } from "./types";
+import { redisApi, type AvailableChat } from "./external/redis-api";
 
 // ─── Dummy Data ───────────────────────────────────────────────────────────────
 
@@ -903,6 +904,34 @@ export default function Dashboard(): JSX.Element {
   const [view, setView] = useState<ViewMode>("tasks");
   const [lastPoll, setLastPoll] = useState<number>(INITIAL_TIMESTAMP_MS);
   const [pollAgo, setPollAgo] = useState<number>(0);
+  const [availableChats, setAvailableChats] = useState<AvailableChat[]>([]);
+  const [chatFetchState, setChatFetchState] = useState<{ loading: boolean; error: string | null }>({
+    loading: false,
+    error: null,
+  });
+
+  // Load available chats once on mount
+  useEffect(() => {
+    const controller = new AbortController();
+    setChatFetchState({ loading: true, error: null });
+
+    redisApi
+      .fetchAvailableChats(controller.signal)
+      .then((chats) => {
+        setAvailableChats(chats);
+        setChatFetchState({ loading: false, error: null });
+
+        if (chats.length && !chats.some((c) => c.chatId === selectedChatId)) {
+          setSelectedChatId(chats[0].chatId);
+        }
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        setChatFetchState({ loading: false, error: err instanceof Error ? err.message : "Failed to load chats" });
+      });
+
+    return () => controller.abort();
+  }, []);
 
   // Polling — replace setLastPoll body with your API fetch
   useEffect(() => {
@@ -927,8 +956,21 @@ export default function Dashboard(): JSX.Element {
     };
   }, [lastPoll]);
 
-  const chatIds = Object.keys(BASE_STATE);
-  const currentChat: ExecutionState | undefined = BASE_STATE[selectedChatId];
+  const dynamicChatIds = availableChats.map((c) => c.chatId);
+  const chatIds = dynamicChatIds.length ? dynamicChatIds : Object.keys(BASE_STATE);
+  const hasExecutionData = Boolean(BASE_STATE[selectedChatId]);
+
+  useEffect(() => {
+    if (!chatIds.length) return;
+    if (!chatIds.includes(selectedChatId)) {
+      const fallback = chatIds[0];
+      setSelectedChatId(fallback);
+      const nextMessages = BASE_STATE[fallback]?.messages ?? {};
+      const firstMsgId = Object.values(nextMessages)[0]?.message_id ?? "";
+      setSelectedMsgId(firstMsgId);
+    }
+  }, [chatIds, selectedChatId]);
+  const currentChat: ExecutionState | undefined = hasExecutionData ? BASE_STATE[selectedChatId] : undefined;
   const messages: MessageState[] = currentChat ? Object.values(currentChat.messages) : [];
   const currentMessage: MessageState | undefined = currentChat?.messages[selectedMsgId];
   const tasks: Record<string, TaskState> = currentMessage?.tasks ?? {};
@@ -1020,10 +1062,8 @@ export default function Dashboard(): JSX.Element {
                 const nextChatId = e.target.value;
                 setSelectedChatId(nextChatId);
                 const nextMessages = BASE_STATE[nextChatId]?.messages ?? {};
-                const firstMsgId = Object.values(nextMessages)[0]?.message_id;
-                if (firstMsgId) {
-                  setSelectedMsgId(firstMsgId);
-                }
+                const firstMsgId = Object.values(nextMessages)[0]?.message_id ?? "";
+                setSelectedMsgId(firstMsgId);
               }}
               style={selectStyle}
             >
@@ -1031,6 +1071,12 @@ export default function Dashboard(): JSX.Element {
                 <option key={id} value={id}>{id}</option>
               ))}
             </select>
+            <div style={{ marginTop: 4, minHeight: 14, fontSize: 10 }}>
+              {chatFetchState.loading && <span style={{ color: "#4b5563" }}>Loading chats…</span>}
+              {!chatFetchState.loading && chatFetchState.error && (
+                <span style={{ color: "#ef4444" }}>Chats unavailable: {chatFetchState.error}</span>
+              )}
+            </div>
           </div>
 
           {/* Message selector */}
@@ -1040,6 +1086,7 @@ export default function Dashboard(): JSX.Element {
               value={selectedMsgId}
               onChange={(e) => setSelectedMsgId(e.target.value)}
               style={{ ...selectStyle, minWidth: 260 }}
+              disabled={!messages.length}
             >
               {messages.map((m) => (
                 <option key={m.message_id} value={m.message_id}>
@@ -1083,6 +1130,22 @@ export default function Dashboard(): JSX.Element {
 
       {/* Content */}
       <div style={{ padding: "20px 24px" }}>
+        {!hasExecutionData && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "14px 16px",
+              background: "#080e1a",
+              border: "1px solid #0d1420",
+              borderRadius: 10,
+              color: "#4b5563",
+              fontSize: 12,
+            }}
+          >
+            Execution data for this chat is not loaded yet.
+          </div>
+        )}
+
         {/* Session metrics */}
         {currentChat && (
           <SessionMetricsBar metrics={currentChat.session_metrics} chat={currentChat} />
